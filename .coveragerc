@@ -1,0 +1,24 @@
+[run]
+dynamic_context = test_function
+omit =
+    # No coverage for tests
+    pyctcdecode/tests/*
+
+[report]
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    # Don't complain about missing debug-only code
+    def __repr__
+
+    # Don't complain if tests don't hit defensive assertion code
+    raise AssertionError
+    raise NotImplementedError
+
+    # Don't complain if non-runnable code isn't run:
+    if __name__ == .__main__.:
+
+    # Don't complain if ellipsis never gets executed
+    ^[ ]*\.\.\.$
