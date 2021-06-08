@@ -5,4 +5,4 @@ from .language_model import LanguageModel
 
 
 __package_name__ = "pyctcdecode"
-__version__ = "0.0.2"
+__version__ = "0.0.1"
