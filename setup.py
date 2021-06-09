@@ -56,6 +56,7 @@ EXTRAS_REQUIRE = {
         "flake8",
         "jupyter",
         "kenlm@https://github.com/kpu/kenlm/archive/master.zip",
+        "mypy",
         "pydocstyle",
         "pylint",
         "pytest",
