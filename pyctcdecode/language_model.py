@@ -18,8 +18,10 @@ from .constants import (
     LOG_BASE_CHANGE_FACTOR,
 )
 
-if TYPE_CHECKING:
+try:
     import kenlm
+except ImportError:
+    pass
 
 
 def _get_empty_lm_state() -> kenlm.State:  # noqa: F821
