@@ -23,7 +23,7 @@ from .constants import (
     DEFAULT_UNK_LOGP_OFFSET,
     MIN_TOKEN_CLIP_P,
 )
-from .language_model import HotwordScorer, LanguageModel
+from .language_model import AbstractLanguageModel, HotwordScorer, LanguageModel
 
 
 # type hints
@@ -171,7 +171,7 @@ class BeamSearchDecoderCTC:
     def __init__(
         self,
         alphabet: Alphabet,
-        language_model: Optional[LanguageModel] = None,
+        language_model: Optional[AbstractLanguageModel] = None,
     ) -> None:
         """CTC beam search decoder for token logit matrix.
 

@@ -1,3 +1,6 @@
+# Copyright 2021-present Kensho Technologies, LLC.
+from __future__ import division
+
 import abc
 import re
 from typing import Iterable, List, Optional, Pattern, Tuple

@@ -264,7 +264,7 @@ class TestDecoder(unittest.TestCase):
         decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")
-        text = _greedy_decode(TEST_LOGITS, decoder._alphabet)
+        text = _greedy_decode(TEST_LOGITS, decoder._alphabet)  # pylint: disable=W0212
         self.assertEqual(text, "bunny bunny")
         # setting a token threshold higher than one will force only argmax characters
         text = decoder.decode(TEST_LOGITS, token_min_logp=0.0)
