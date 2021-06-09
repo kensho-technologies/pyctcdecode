@@ -16,7 +16,7 @@ from ..decoder import (
     _prune_history,
     _sort_and_trim_beams,
     _sum_log_scores,
-    build_ctcdecoder
+    build_ctcdecoder,
 )
 from ..language_model import LanguageModel, MultiLanguageModel
 

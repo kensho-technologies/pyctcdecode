@@ -21,7 +21,7 @@ from .constants import (
     DEFAULT_PRUNE_LOGP,
     DEFAULT_SCORE_LM_BOUNDARY,
     DEFAULT_UNK_LOGP_OFFSET,
-    MIN_TOKEN_CLIP_P
+    MIN_TOKEN_CLIP_P,
 )
 from .language_model import HotwordScorer, LanguageModel
 

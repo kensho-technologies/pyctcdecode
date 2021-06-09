@@ -12,11 +12,11 @@ from .constants import (
     DEFAULT_HOTWORD_WEIGHT,
     DEFAULT_SCORE_LM_BOUNDARY,
     DEFAULT_UNK_LOGP_OFFSET,
-    LOG_BASE_CHANGE_FACTOR
+    LOG_BASE_CHANGE_FACTOR,
 )
 
 
-def _get_empty_lm_state():
+def _get_empty_lm_state() -> "kenlm.State":  # noqa: F821
     """Get unintialized kenlm state."""
     try:
         import kenlm
@@ -120,7 +120,7 @@ class AbstractLanguageModel(abc.ABC):
 
     @abc.abstractmethod
     def score(
-        self, prev_state: "kenlm.State", word: str, is_last_word: bool = False
+        self, prev_state: "kenlm.State", word: str, is_last_word: bool = False  # noqa: F821
     ) -> Tuple[float, "kenlm.State"]:  # noqa: F821
         """Score word conditional on previous lm state."""
         raise NotImplementedError()
@@ -194,7 +194,7 @@ class LanguageModel(AbstractLanguageModel):
         return unk_score
 
     def score(
-        self, prev_state: "kenlm.State", word: str, is_last_word: bool = False
+        self, prev_state: "kenlm.State", word: str, is_last_word: bool = False  # noqa: F821
     ) -> Tuple[float, "kenlm.State"]:  # noqa: F821
         """Score word conditional on start state."""
         end_state = _get_empty_lm_state()
@@ -241,7 +241,7 @@ class MultiLanguageModel(AbstractLanguageModel):
         )
 
     def score(
-        self, prev_state: List["kenlm.State"], word: str, is_last_word: bool = False
+        self, prev_state: List["kenlm.State"], word: str, is_last_word: bool = False  # noqa: F821
     ) -> Tuple[float, List["kenlm.State"]]:  # noqa: F821
         """Score word conditional on previous lm state."""
         score = 0.0
