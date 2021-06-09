@@ -27,7 +27,7 @@ from .language_model import AbstractLanguageModel, HotwordScorer, LanguageModel
 
 
 try:
-    import kenlm
+    import kenlm  # type: ignore
 except ImportError:
     pass
 
@@ -131,7 +131,7 @@ def _merge_beams(beams: List[Beam]) -> List[Beam]:
     return list(beam_dict.values())
 
 
-def _prune_history(beams: List[LMBeam], lm_order: int) -> List[LMBeam]:
+def _prune_history(beams: List[LMBeam], lm_order: int) -> List[Beam]:
     """Filter out beams that are the same over max_ngram history.
 
     Since n-gram language models have a finite history when scoring a new token, we can use that
@@ -172,7 +172,7 @@ class BeamSearchDecoderCTC:
     # Specifically we create a random dictionary key during object instantiation which becomes the
     # storage key for the class variable model_container. This allows for multiple model instances
     # to be loaded at the same time.
-    model_container = {}
+    model_container: Dict[bytes, AbstractLanguageModel] = {}
 
     def __init__(
         self,

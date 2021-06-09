@@ -6,7 +6,7 @@ import re
 from typing import Iterable, List, Optional, Pattern, Tuple
 
 import numpy as np
-from pygtrie import CharTrie
+from pygtrie import CharTrie  # type: ignore
 
 from .constants import (
     AVG_TOKEN_LEN,
@@ -20,7 +20,7 @@ from .constants import (
 
 
 try:
-    import kenlm
+    import kenlm  # type: ignore
 except ImportError:
     pass
 

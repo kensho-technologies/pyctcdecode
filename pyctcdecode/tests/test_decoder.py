@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import unittest
 
-import kenlm
+import kenlm  # type: ignore
 import numpy as np
 
 from ..alphabet import BPE_CHAR, UNK_BPE_CHAR, Alphabet
