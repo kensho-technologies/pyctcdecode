@@ -11,16 +11,5 @@ shopt -s globstar nullglob
 # Break on first error.
 set -e
 
-# This script is intended for use in the CI environment.
-# If it happens to work outside of CI as well, that is a pleasant but non-guaranteed side effect.
-#
-# Install all the binary dependencies needed on an Ubuntu system.
-bash -c "wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -"
-sudo add-apt-repository "$(wget -qO- https://packages.microsoft.com/config/ubuntu/"$(lsb_release -r -s)"/prod.list)"
-sudo apt-get update
-sudo apt-get install unixodbc-dev python3-mysqldb libmysqlclient-dev
-ACCEPT_EULA=Y sudo apt-get install msodbcsql17
-
 # Ensure pip, setuptools, and pipenv are latest available versions.
 python -m pip install --upgrade pip
-python -m pip install --upgrade setuptools pipenv
