@@ -18,6 +18,7 @@ from .constants import (
     LOG_BASE_CHANGE_FACTOR,
 )
 
+
 try:
     import kenlm
 except ImportError:
