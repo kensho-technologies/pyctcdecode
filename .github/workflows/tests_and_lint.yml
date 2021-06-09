@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .
+          pip install -e .[extra]
       - name: Run lint checks
         run: |
           ./scripts/lint.sh ${{ matrix.lint-flags }}
@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .
+          pip install -e .[extra]
       - name: Test with pytest
         run: |
           pytest --cov=pyctcdecode pyctcdecode/tests -m '${{ matrix.markers }}'
