@@ -6,8 +6,13 @@ import numpy as np
 from pygtrie import CharTrie
 
 from .constants import (
-    AVG_TOKEN_LEN, DEFAULT_ALPHA, DEFAULT_BETA, DEFAULT_HOTWORD_WEIGHT, DEFAULT_SCORE_LM_BOUNDARY,
-    DEFAULT_UNK_LOGP_OFFSET, LOG_BASE_CHANGE_FACTOR
+    AVG_TOKEN_LEN,
+    DEFAULT_ALPHA,
+    DEFAULT_BETA,
+    DEFAULT_HOTWORD_WEIGHT,
+    DEFAULT_SCORE_LM_BOUNDARY,
+    DEFAULT_UNK_LOGP_OFFSET,
+    LOG_BASE_CHANGE_FACTOR
 )
 
 
@@ -190,15 +195,15 @@ class LanguageModel(AbstractLanguageModel):
 
     def score(
         self, prev_state: "kenlm.State", word: str, is_last_word: bool = False
-    ) -> Tuple[float, "kenlm.State"]:
+    ) -> Tuple[float, "kenlm.State"]:  # noqa: F821
         """Score word conditional on start state."""
         end_state = _get_empty_lm_state()
         lm_score = self._kenlm_model.BaseScore(prev_state, word, end_state)
         # override UNK prob. use unigram set if we have because it's faster
         if (
-            len(self._unigram_set) > 0
-            and word not in self._unigram_set
-            or word not in self._kenlm_model
+            len(self._unigram_set) > 0 and
+            word not in self._unigram_set or
+            word not in self._kenlm_model
         ):
             lm_score += self.unk_score_offset
         # add end of sentence context if needed

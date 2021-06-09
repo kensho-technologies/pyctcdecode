@@ -10,8 +10,13 @@ import numpy as np
 
 from ..alphabet import BPE_CHAR, UNK_BPE_CHAR, Alphabet
 from ..decoder import (
-    BeamSearchDecoderCTC, _merge_beams, _normalize_whitespace, _prune_history, _sort_and_trim_beams,
-    _sum_log_scores, build_ctcdecoder
+    BeamSearchDecoderCTC,
+    _merge_beams,
+    _normalize_whitespace,
+    _prune_history,
+    _sort_and_trim_beams,
+    _sum_log_scores,
+    build_ctcdecoder
 )
 from ..language_model import LanguageModel, MultiLanguageModel
 

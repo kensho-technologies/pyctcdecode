@@ -1,5 +1,6 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 from __future__ import division
+
 import functools
 import heapq
 import logging
@@ -12,8 +13,15 @@ import numpy as np
 
 from .alphabet import BPE_CHAR, Alphabet
 from .constants import (
-    DEFAULT_ALPHA, DEFAULT_BEAM_WIDTH, DEFAULT_BETA, DEFAULT_HOTWORD_WEIGHT, DEFAULT_MIN_TOKEN_LOGP,
-    DEFAULT_PRUNE_LOGP, DEFAULT_SCORE_LM_BOUNDARY, DEFAULT_UNK_LOGP_OFFSET, MIN_TOKEN_CLIP_P
+    DEFAULT_ALPHA,
+    DEFAULT_BEAM_WIDTH,
+    DEFAULT_BETA,
+    DEFAULT_HOTWORD_WEIGHT,
+    DEFAULT_MIN_TOKEN_LOGP,
+    DEFAULT_PRUNE_LOGP,
+    DEFAULT_SCORE_LM_BOUNDARY,
+    DEFAULT_UNK_LOGP_OFFSET,
+    MIN_TOKEN_CLIP_P
 )
 from .language_model import HotwordScorer, LanguageModel
 
@@ -222,9 +230,9 @@ class BeamSearchDecoderCTC:
                 new_text = _merge_tokens(text, next_word)
                 # note that usually this gets scaled with alpha
                 lm_hw_score = (
-                    logit_score
-                    + hotword_scorer.score(new_text)
-                    + hotword_scorer.score_partial_token(word_part)
+                    logit_score +
+                    hotword_scorer.score(new_text) +
+                    hotword_scorer.score_partial_token(word_part)
                 )
 
                 new_beams.append(
