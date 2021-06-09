@@ -3,7 +3,7 @@ from __future__ import division
 
 import abc
 import re
-from typing import TYPE_CHECKING, Iterable, List, Optional, Pattern, Tuple
+from typing import Iterable, List, Optional, Pattern, Tuple
 
 import numpy as np
 from pygtrie import CharTrie
@@ -27,10 +27,10 @@ except ImportError:
 def _get_empty_lm_state() -> kenlm.State:  # noqa: F821
     """Get unintialized kenlm state."""
     try:
-        import kenlm
+        kenlm_state = kenlm.State()
     except ImportError:
         raise ValueError("To use a language model, you need to install kenlm.")
-    return kenlm.State()
+    return kenlm_state
 
 
 class HotwordScorer:
