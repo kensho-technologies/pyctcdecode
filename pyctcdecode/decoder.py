@@ -10,17 +10,10 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
-from .alphabet import Alphabet, BPE_CHAR
+from .alphabet import BPE_CHAR, Alphabet
 from .constants import (
-    DEFAULT_ALPHA,
-    DEFAULT_BEAM_WIDTH,
-    DEFAULT_BETA,
-    DEFAULT_HOTWORD_WEIGHT,
-    DEFAULT_MIN_TOKEN_LOGP,
-    DEFAULT_PRUNE_LOGP,
-    DEFAULT_SCORE_LM_BOUNDARY,
-    DEFAULT_UNK_LOGP_OFFSET,
-    MIN_TOKEN_CLIP_P,
+    DEFAULT_ALPHA, DEFAULT_BEAM_WIDTH, DEFAULT_BETA, DEFAULT_HOTWORD_WEIGHT, DEFAULT_MIN_TOKEN_LOGP,
+    DEFAULT_PRUNE_LOGP, DEFAULT_SCORE_LM_BOUNDARY, DEFAULT_UNK_LOGP_OFFSET, MIN_TOKEN_CLIP_P
 )
 from .language_model import HotwordScorer, LanguageModel
 
@@ -36,7 +29,7 @@ Beam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float]
 LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
 # for output beams we return the text, the scores, the lm state and the word frame indices
 # text, last_lm_state, text_frames, logit_score, lm_score
-OutputBeam = Tuple[str, Optional["kenlm.State"], List[WordFrames], float, float]
+OutputBeam = Tuple[str, Optional["kenlm.State"], List[WordFrames], float, float]  # noqa: F821
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
 
@@ -142,7 +135,15 @@ def _prune_history(beams: List[LMBeam], lm_order: int) -> List[LMBeam]:
         hash_idx = (tuple(text.split()[-min_n_history:]), word_part, last_char)
         if hash_idx not in seen_hashes:
             filtered_beams.append(
-                (text, next_word, word_part, last_char, text_frames, part_frames, logit_score,)
+                (
+                    text,
+                    next_word,
+                    word_part,
+                    last_char,
+                    text_frames,
+                    part_frames,
+                    logit_score,
+                )
             )
             seen_hashes.add(hash_idx)
     return filtered_beams
@@ -158,7 +159,11 @@ class BeamSearchDecoderCTC:
     # to be loaded at the same time.
     model_container = {}
 
-    def __init__(self, alphabet: Alphabet, language_model: Optional[LanguageModel] = None,) -> None:
+    def __init__(
+        self,
+        alphabet: Alphabet,
+        language_model: Optional[LanguageModel] = None,
+    ) -> None:
         """CTC beam search decoder for token logit matrix.
 
         Args:
@@ -203,7 +208,7 @@ class BeamSearchDecoderCTC:
         self,
         beams: List[Beam],
         hotword_scorer: HotwordScorer,
-        cached_lm_scores: Dict[str, Tuple[float, float, "kenlm.State"]],
+        cached_lm_scores: Dict[str, Tuple[float, float, "kenlm.State"]],  # noqa: F821
         cached_partial_token_scores: Dict[str, float],
         is_eos: bool = False,
     ) -> List[LMBeam]:
@@ -284,7 +289,7 @@ class BeamSearchDecoderCTC:
         token_min_logp: float,
         prune_history: bool,
         hotword_scorer: HotwordScorer,
-        lm_start_state: Optional["kenlm.State"] = None,
+        lm_start_state: Optional["kenlm.State"] = None,  # noqa: F821
     ) -> List[OutputBeam]:
         """Perform beam search decoding."""
         # local dictionaries to cache scores during decoding
@@ -395,7 +400,10 @@ class BeamSearchDecoderCTC:
             # lm scoring and beam pruning
             new_beams = _merge_beams(new_beams)
             scored_beams = self._get_lm_beams(
-                new_beams, hotword_scorer, cached_lm_scores, cached_p_lm_scores,
+                new_beams,
+                hotword_scorer,
+                cached_lm_scores,
+                cached_p_lm_scores,
             )
             # remove beam outliers
             max_score = max([b[-1] for b in scored_beams])
@@ -416,7 +424,11 @@ class BeamSearchDecoderCTC:
             new_beams.append((text, word_part, "", None, new_token_times, (-1, -1), logit_score))
         new_beams = _merge_beams(new_beams)
         scored_beams = self._get_lm_beams(
-            new_beams, hotword_scorer, cached_lm_scores, cached_p_lm_scores, is_eos=True,
+            new_beams,
+            hotword_scorer,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            is_eos=True,
         )
         # remove beam outliers
         max_score = max([b[-1] for b in scored_beams])
@@ -444,7 +456,7 @@ class BeamSearchDecoderCTC:
         prune_history: bool = False,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
-        lm_start_state: Optional["kenlm.State"] = None,
+        lm_start_state: Optional["kenlm.State"] = None,  # noqa: F821
     ) -> List[OutputBeam]:
         """Convert input token logit matrix to decoded beams including meta information.
 
@@ -557,7 +569,7 @@ class BeamSearchDecoderCTC:
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
-        lm_start_state: Optional["kenlm.State"] = None,
+        lm_start_state: Optional["kenlm.State"] = None,  # noqa: F821
     ) -> str:
         """Convert input token logit matrix to decoded text.
 
@@ -628,7 +640,7 @@ class BeamSearchDecoderCTC:
 
 def build_ctcdecoder(
     labels: List[str],
-    kenlm_model: Optional["kenlm.Model"] = None,
+    kenlm_model: Optional["kenlm.Model"] = None,  # noqa: F821
     unigrams: Optional[Iterable[str]] = None,
     alpha: float = DEFAULT_ALPHA,
     beta: float = DEFAULT_BETA,

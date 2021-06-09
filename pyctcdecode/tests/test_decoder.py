@@ -8,26 +8,21 @@ import unittest
 import kenlm
 import numpy as np
 
-from ..alphabet import Alphabet, BPE_CHAR, UNK_BPE_CHAR
+from ..alphabet import BPE_CHAR, UNK_BPE_CHAR, Alphabet
 from ..decoder import (
-    BeamSearchDecoderCTC,
-    _merge_beams,
-    _normalize_whitespace,
-    _prune_history,
-    _sort_and_trim_beams,
-    _sum_log_scores,
-    build_ctcdecoder,
+    BeamSearchDecoderCTC, _merge_beams, _normalize_whitespace, _prune_history, _sort_and_trim_beams,
+    _sum_log_scores, build_ctcdecoder
 )
 from ..language_model import LanguageModel, MultiLanguageModel
 
 
 def _approx_beams(beams, precis=5):
-    """Return beams with scores rounded"""
+    """Return beams with scores rounded."""
     return [tuple(list(b[:-1]) + [round(b[-1], precis)]) for b in beams]
 
 
 def _approx_lm_beams(beams, precis=5):
-    """Return beams with scores rounded"""
+    """Return beams with scores rounded."""
     simple_beams = []
     for text, _, frames, s1, s2 in beams:
         simple_beams.append((text, frames, round(s1, precis), round(s2, precis)))

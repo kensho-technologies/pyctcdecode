@@ -1,8 +1,8 @@
 import os
-
-import nbformat
-from nbconvert.preprocessors import ExecutePreprocessor
 import unittest
+
+from nbconvert.preprocessors import ExecutePreprocessor
+import nbformat
 
 
 CUR_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -10,7 +10,7 @@ TUTORIALS_PATH = os.path.join(CUR_PATH, "..", "..", "tutorials")
 
 
 def run_notebook_from_file(notebook_file):
-    """Run an ipython notebook with the right path settings and get the results"""
+    """Run an ipython notebook with the right path settings and get the results."""
     with open(notebook_file) as f:
         nb = nbformat.read(f, as_version=4)
 

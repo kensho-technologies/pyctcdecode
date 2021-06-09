@@ -1,19 +1,13 @@
 import abc
-
-from pygtrie import CharTrie
+import re
 from typing import Iterable, List, Optional, Pattern, Tuple
 
 import numpy as np
-import re
+from pygtrie import CharTrie
 
 from .constants import (
-    AVG_TOKEN_LEN,
-    DEFAULT_ALPHA,
-    DEFAULT_BETA,
-    DEFAULT_HOTWORD_WEIGHT,
-    DEFAULT_SCORE_LM_BOUNDARY,
-    DEFAULT_UNK_LOGP_OFFSET,
-    LOG_BASE_CHANGE_FACTOR,
+    AVG_TOKEN_LEN, DEFAULT_ALPHA, DEFAULT_BETA, DEFAULT_HOTWORD_WEIGHT, DEFAULT_SCORE_LM_BOUNDARY,
+    DEFAULT_UNK_LOGP_OFFSET, LOG_BASE_CHANGE_FACTOR
 )
 
 
@@ -28,7 +22,10 @@ def _get_empty_lm_state():
 
 class HotwordScorer:
     def __init__(
-        self, match_ptn: Pattern[str], char_trie: CharTrie, weight: float = DEFAULT_HOTWORD_WEIGHT,
+        self,
+        match_ptn: Pattern[str],
+        char_trie: CharTrie,
+        weight: float = DEFAULT_HOTWORD_WEIGHT,
     ) -> None:
         """Scorer for hotwords if provided.
 
@@ -42,14 +39,15 @@ class HotwordScorer:
         self._weight = weight
 
     def __contains__(self, item):
+        """Contains."""
         return self._char_trie.has_node(item) > 0
 
     def score(self, text: str) -> float:
-        """Get total hotword score for input text"""
+        """Get total hotword score for input text."""
         return self._weight * len(self._match_ptn.findall(text))
 
     def score_partial_token(self, token: str) -> float:
-        """Get total hotword score for input text"""
+        """Get total hotword score for input text."""
         if token in self:
             # find shortest unigram starting with the given partial token
             min_len = len(next(self._char_trie.iterkeys(token, shallow=True)))
@@ -106,7 +104,7 @@ class AbstractLanguageModel(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_start_state(self) -> List["kenlm.State"]:
+    def get_start_state(self) -> List["kenlm.State"]:  # noqa: F821
         """Get initial lm state."""
         raise NotImplementedError()
 
@@ -118,7 +116,7 @@ class AbstractLanguageModel(abc.ABC):
     @abc.abstractmethod
     def score(
         self, prev_state: "kenlm.State", word: str, is_last_word: bool = False
-    ) -> Tuple[float, "kenlm.State"]:
+    ) -> Tuple[float, "kenlm.State"]:  # noqa: F821
         """Score word conditional on previous lm state."""
         raise NotImplementedError()
 
@@ -126,7 +124,7 @@ class AbstractLanguageModel(abc.ABC):
 class LanguageModel(AbstractLanguageModel):
     def __init__(
         self,
-        kenlm_model: "kenlm.Model",
+        kenlm_model: "kenlm.Model",  # noqa: F821
         unigrams: Optional[Iterable[str]] = None,
         alpha: float = DEFAULT_ALPHA,
         beta: float = DEFAULT_BETA,
@@ -162,7 +160,7 @@ class LanguageModel(AbstractLanguageModel):
         """Get the order of the n-gram language model."""
         return self._kenlm_model.order
 
-    def get_start_state(self) -> "kenlm.State":
+    def get_start_state(self) -> "kenlm.State":  # noqa: F821
         """Get initial lm state."""
         start_state = _get_empty_lm_state()
         if self.score_boundary:
@@ -171,7 +169,7 @@ class LanguageModel(AbstractLanguageModel):
             self._kenlm_model.NullContextWrite(start_state)
         return start_state
 
-    def _get_raw_end_score(self, start_state: "kenlm.State") -> float:
+    def _get_raw_end_score(self, start_state: "kenlm.State") -> float:  # noqa: F821
         """Calculate final lm score."""
         if self.score_boundary:
             end_state = _get_empty_lm_state()
@@ -227,7 +225,7 @@ class MultiLanguageModel(AbstractLanguageModel):
         """Get the maximum order of the contained n-gram language model."""
         return max([lm.order for lm in self._language_models])
 
-    def get_start_state(self) -> List["kenlm.State"]:
+    def get_start_state(self) -> List["kenlm.State"]:  # noqa: F821
         """Get initial lm state."""
         return [lm.get_start_state() for lm in self._language_models]
 
@@ -239,7 +237,7 @@ class MultiLanguageModel(AbstractLanguageModel):
 
     def score(
         self, prev_state: List["kenlm.State"], word: str, is_last_word: bool = False
-    ) -> Tuple[float, List["kenlm.State"]]:
+    ) -> Tuple[float, List["kenlm.State"]]:  # noqa: F821
         """Score word conditional on previous lm state."""
         score = 0.0
         end_state = []

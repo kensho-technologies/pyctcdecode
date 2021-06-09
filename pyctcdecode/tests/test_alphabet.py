@@ -1,15 +1,11 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import unittest
 
-from ..alphabet import (
-    _normalize_alphabet,
-    _normalize_bpe_alphabet,
-    Alphabet,
-)
+from ..alphabet import Alphabet, _normalize_alphabet, _normalize_bpe_alphabet
 
 
 def _approx_beams(beams, precis=5):
-    """Return beams with scores rounded"""
+    """Return beams with scores rounded."""
     return [tuple(list(b[:-1]) + [round(b[-1], precis)]) for b in beams]
 
 
