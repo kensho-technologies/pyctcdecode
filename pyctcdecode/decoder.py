@@ -313,7 +313,9 @@ class BeamSearchDecoderCTC:
         # we can pass in an input start state to keep the decoder stateful and working on realtime
         language_model = BeamSearchDecoderCTC.model_container[self._model_key]
         if lm_start_state is None and language_model is not None:
-            cached_lm_scores = {"": (0.0, 0.0, language_model.get_start_state())}
+            cached_lm_scores: Dict[str, Tuple[float, float, LMState]] = {
+                "": (0.0, 0.0, language_model.get_start_state())
+            }
         else:
             cached_lm_scores = {"": (0.0, 0.0, lm_start_state)}
         cached_p_lm_scores: Dict[str, float] = {}
