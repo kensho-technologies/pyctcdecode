@@ -5,10 +5,10 @@ import multiprocessing
 import os
 import unittest
 
-import kenlm
+import kenlm  # type: ignore
 import numpy as np
 
-from ..alphabet import Alphabet, BPE_CHAR, UNK_BPE_CHAR
+from ..alphabet import BPE_CHAR, UNK_BPE_CHAR, Alphabet
 from ..decoder import (
     BeamSearchDecoderCTC,
     _merge_beams,
@@ -22,12 +22,12 @@ from ..language_model import LanguageModel, MultiLanguageModel
 
 
 def _approx_beams(beams, precis=5):
-    """Return beams with scores rounded"""
+    """Return beams with scores rounded."""
     return [tuple(list(b[:-1]) + [round(b[-1], precis)]) for b in beams]
 
 
 def _approx_lm_beams(beams, precis=5):
-    """Return beams with scores rounded"""
+    """Return beams with scores rounded."""
     simple_beams = []
     for text, _, frames, s1, s2 in beams:
         simple_beams.append((text, frames, round(s1, precis), round(s2, precis)))
@@ -264,7 +264,7 @@ class TestDecoder(unittest.TestCase):
         decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")
-        text = _greedy_decode(TEST_LOGITS, decoder._alphabet)
+        text = _greedy_decode(TEST_LOGITS, decoder._alphabet)  # pylint: disable=W0212
         self.assertEqual(text, "bunny bunny")
         # setting a token threshold higher than one will force only argmax characters
         text = decoder.decode(TEST_LOGITS, token_min_logp=0.0)

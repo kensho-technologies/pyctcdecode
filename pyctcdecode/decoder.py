@@ -1,16 +1,16 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 from __future__ import division
+
 import functools
 import heapq
 import logging
 import math
-import multiprocessing
 import os
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
-from .alphabet import Alphabet, BPE_CHAR
+from .alphabet import BPE_CHAR, Alphabet
 from .constants import (
     DEFAULT_ALPHA,
     DEFAULT_BEAM_WIDTH,
@@ -22,7 +22,13 @@ from .constants import (
     DEFAULT_UNK_LOGP_OFFSET,
     MIN_TOKEN_CLIP_P,
 )
-from .language_model import HotwordScorer, LanguageModel
+from .language_model import AbstractLanguageModel, HotwordScorer, LanguageModel
+
+
+try:
+    import kenlm  # type: ignore
+except ImportError:
+    pass
 
 
 # type hints
@@ -34,12 +40,16 @@ WordFrames = Tuple[str, Frames]
 Beam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float]
 # same as BEAMS but with current lm score that will be discarded again after sorting
 LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
+# lm state supports single and multi language model
+LMState = Optional[Union[kenlm.State, List[kenlm.State]]]
 # for output beams we return the text, the scores, the lm state and the word frame indices
 # text, last_lm_state, text_frames, logit_score, lm_score
-OutputBeam = Tuple[str, Optional["kenlm.State"], List[WordFrames], float, float]
+OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
 
+
+# constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
 EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 
@@ -77,7 +87,7 @@ def _log_softmax(x: np.ndarray, axis: Optional[int] = None) -> np.ndarray:
     exp_tmp = np.exp(tmp)
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
-        s = np.sum(exp_tmp, axis=axis, keepdims=True)
+        s = np.sum(exp_tmp, axis=axis, keepdims=True)  # type: ignore
         out = np.log(s)
     out = tmp - out
     return out
@@ -123,7 +133,7 @@ def _merge_beams(beams: List[Beam]) -> List[Beam]:
     return list(beam_dict.values())
 
 
-def _prune_history(beams: List[LMBeam], lm_order: int) -> List[LMBeam]:
+def _prune_history(beams: List[LMBeam], lm_order: int) -> List[Beam]:
     """Filter out beams that are the same over max_ngram history.
 
     Since n-gram language models have a finite history when scoring a new token, we can use that
@@ -142,7 +152,15 @@ def _prune_history(beams: List[LMBeam], lm_order: int) -> List[LMBeam]:
         hash_idx = (tuple(text.split()[-min_n_history:]), word_part, last_char)
         if hash_idx not in seen_hashes:
             filtered_beams.append(
-                (text, next_word, word_part, last_char, text_frames, part_frames, logit_score,)
+                (
+                    text,
+                    next_word,
+                    word_part,
+                    last_char,
+                    text_frames,
+                    part_frames,
+                    logit_score,
+                )
             )
             seen_hashes.add(hash_idx)
     return filtered_beams
@@ -156,9 +174,13 @@ class BeamSearchDecoderCTC:
     # Specifically we create a random dictionary key during object instantiation which becomes the
     # storage key for the class variable model_container. This allows for multiple model instances
     # to be loaded at the same time.
-    model_container = {}
+    model_container: Dict[bytes, Optional[AbstractLanguageModel]] = {}
 
-    def __init__(self, alphabet: Alphabet, language_model: Optional[LanguageModel] = None,) -> None:
+    def __init__(
+        self,
+        alphabet: Alphabet,
+        language_model: Optional[AbstractLanguageModel] = None,
+    ) -> None:
         """CTC beam search decoder for token logit matrix.
 
         Args:
@@ -178,16 +200,16 @@ class BeamSearchDecoderCTC:
         unk_score_offset: float = None,
         lm_score_boundary: bool = None,
     ) -> None:
-        """Reset parameters that don't require reinstantiating the model."""
+        """Reset parameters that don't require re-instantiating the model."""
         language_model = BeamSearchDecoderCTC.model_container[self._model_key]
         if alpha is not None:
-            language_model.alpha = alpha
+            language_model.alpha = alpha  # type: ignore
         if beta is not None:
-            language_model.beta = beta
+            language_model.beta = beta  # type: ignore
         if unk_score_offset is not None:
-            language_model.unk_score_offset = unk_score_offset
+            language_model.unk_score_offset = unk_score_offset  # type: ignore
         if lm_score_boundary is not None:
-            language_model.score_boundary = lm_score_boundary
+            language_model.score_boundary = lm_score_boundary  # type: ignore
 
     @classmethod
     def clear_class_models(cls) -> None:
@@ -203,7 +225,7 @@ class BeamSearchDecoderCTC:
         self,
         beams: List[Beam],
         hotword_scorer: HotwordScorer,
-        cached_lm_scores: Dict[str, Tuple[float, float, "kenlm.State"]],
+        cached_lm_scores: Dict[str, Tuple[float, float, LMState]],
         cached_partial_token_scores: Dict[str, float],
         is_eos: bool = False,
     ) -> List[LMBeam]:
@@ -284,17 +306,19 @@ class BeamSearchDecoderCTC:
         token_min_logp: float,
         prune_history: bool,
         hotword_scorer: HotwordScorer,
-        lm_start_state: Optional["kenlm.State"] = None,
+        lm_start_state: LMState = None,
     ) -> List[OutputBeam]:
         """Perform beam search decoding."""
         # local dictionaries to cache scores during decoding
         # we can pass in an input start state to keep the decoder stateful and working on realtime
         language_model = BeamSearchDecoderCTC.model_container[self._model_key]
         if lm_start_state is None and language_model is not None:
-            cached_lm_scores = {"": (0.0, 0.0, language_model.get_start_state())}
+            cached_lm_scores: Dict[str, Tuple[float, float, LMState]] = {
+                "": (0.0, 0.0, language_model.get_start_state())
+            }
         else:
             cached_lm_scores = {"": (0.0, 0.0, lm_start_state)}
-        cached_p_lm_scores = {}
+        cached_p_lm_scores: Dict[str, float] = {}
         # start with single beam to expand on
         beams = [EMPTY_START_BEAM]
         # bpe we can also have trailing word boundaries ▁⁇▁ so we may need to remember breaks
@@ -302,7 +326,7 @@ class BeamSearchDecoderCTC:
         for frame_idx, logit_col in enumerate(logits):
             max_idx = logit_col.argmax()
             idx_list = set(np.where(logit_col >= token_min_logp)[0]) | {max_idx}
-            new_beams = []
+            new_beams: List[Beam] = []
             for idx_char in idx_list:
                 p_char = logit_col[idx_char]
                 char = self._idx2vocab[idx_char]
@@ -395,7 +419,10 @@ class BeamSearchDecoderCTC:
             # lm scoring and beam pruning
             new_beams = _merge_beams(new_beams)
             scored_beams = self._get_lm_beams(
-                new_beams, hotword_scorer, cached_lm_scores, cached_p_lm_scores,
+                new_beams,
+                hotword_scorer,
+                cached_lm_scores,
+                cached_p_lm_scores,
             )
             # remove beam outliers
             max_score = max([b[-1] for b in scored_beams])
@@ -416,7 +443,11 @@ class BeamSearchDecoderCTC:
             new_beams.append((text, word_part, "", None, new_token_times, (-1, -1), logit_score))
         new_beams = _merge_beams(new_beams)
         scored_beams = self._get_lm_beams(
-            new_beams, hotword_scorer, cached_lm_scores, cached_p_lm_scores, is_eos=True,
+            new_beams,
+            hotword_scorer,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            is_eos=True,
         )
         # remove beam outliers
         max_score = max([b[-1] for b in scored_beams])
@@ -444,7 +475,7 @@ class BeamSearchDecoderCTC:
         prune_history: bool = False,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
-        lm_start_state: Optional["kenlm.State"] = None,
+        lm_start_state: LMState = None,
     ) -> List[OutputBeam]:
         """Convert input token logit matrix to decoded beams including meta information.
 
@@ -510,13 +541,13 @@ class BeamSearchDecoderCTC:
         # remove kenlm state to allow multiprocessing
         decoded_beams_mp_safe = [
             (text, frames_list, logit_score, lm_score)
-            for text, frames_list, logit_score, lm_score in decoded_beams
+            for text, _, frames_list, logit_score, lm_score in decoded_beams
         ]
         return decoded_beams_mp_safe
 
     def decode_beams_batch(
         self,
-        pool: multiprocessing.Pool,
+        pool: Any,
         logits_list: List[np.ndarray],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
@@ -557,7 +588,7 @@ class BeamSearchDecoderCTC:
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
-        lm_start_state: Optional["kenlm.State"] = None,
+        lm_start_state: LMState = None,
     ) -> str:
         """Convert input token logit matrix to decoded text.
 
@@ -587,7 +618,7 @@ class BeamSearchDecoderCTC:
 
     def decode_batch(
         self,
-        pool: multiprocessing.Pool,
+        pool: Any,
         logits_list: List[np.ndarray],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
@@ -628,7 +659,7 @@ class BeamSearchDecoderCTC:
 
 def build_ctcdecoder(
     labels: List[str],
-    kenlm_model: Optional["kenlm.Model"] = None,
+    kenlm_model: Optional[kenlm.Model] = None,
     unigrams: Optional[Iterable[str]] = None,
     alpha: float = DEFAULT_ALPHA,
     beta: float = DEFAULT_BETA,
@@ -658,7 +689,7 @@ def build_ctcdecoder(
     else:
         alphabet = Alphabet.build_alphabet(labels, ctc_token_idx=ctc_token_idx)
     if kenlm_model is not None:
-        language_model = LanguageModel(
+        language_model: Optional[AbstractLanguageModel] = LanguageModel(
             kenlm_model,
             unigrams,
             alpha=alpha,

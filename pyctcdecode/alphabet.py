@@ -38,14 +38,16 @@ def _convert_bpe_format(token: str) -> str:
         return token[2:]
     elif token == BPE_CHAR:
         return token
-    elif token == "":
+    elif token == "":  # nosec
         return token
     else:
         return BPE_CHAR + token
 
 
 def _normalize_bpe_alphabet(
-    label_list: List[str], unk_token_idx: Optional[int] = None, ctc_token_idx: Optional[int] = None,
+    label_list: List[str],
+    unk_token_idx: Optional[int] = None,
+    ctc_token_idx: Optional[int] = None,
 ) -> List[str]:
     """Normalize alphabet for bpe decoder."""
     if ctc_token_idx is None:
@@ -88,24 +90,25 @@ def _normalize_bpe_alphabet(
 
 class Alphabet:
     def __init__(self, labels: List[str], is_bpe: bool) -> None:
+        """Init."""
         self._labels = labels
         self._is_bpe = is_bpe
 
     @property
     def is_bpe(self) -> bool:
-        """Whether the alphabet is a bytepair encoded one"""
+        """Whether the alphabet is a bytepair encoded one."""
         return self._is_bpe
 
     @property
     def labels(self) -> List[str]:
-        """Deep copy of the labels"""
+        """Deep copy of the labels."""
         return self._labels[:]  # this is a copy
 
     @classmethod
     def build_alphabet(
         cls, label_list: List[str], ctc_token_idx: Optional[int] = None
     ) -> "Alphabet":
-        """Make a non-BPE alphabet"""
+        """Make a non-BPE alphabet."""
         formatted_alphabet_list = _normalize_alphabet(label_list, ctc_token_idx)
         return cls(formatted_alphabet_list, False)
 
@@ -116,6 +119,6 @@ class Alphabet:
         unk_token_idx: Optional[int] = None,
         ctc_token_idx: Optional[int] = None,
     ) -> "Alphabet":
-        """Make a BPE alphabet"""
+        """Make a BPE alphabet."""
         formatted_label_list = _normalize_bpe_alphabet(label_list, unk_token_idx, ctc_token_idx)
         return cls(formatted_label_list, True)
