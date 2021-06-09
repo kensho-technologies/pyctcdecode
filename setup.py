@@ -52,6 +52,7 @@ REQUIRED_PACKAGES = ["numpy>=0.16.0,<2.0.0", "pygtrie>=2.1,<3.0"]
 
 EXTRAS_REQUIRE = {
     "dev": [
+        "bandit",
         "black",
         "flake8",
         "jupyter",
@@ -60,6 +61,7 @@ EXTRAS_REQUIRE = {
         "pydocstyle",
         "pylint",
         "pytest",
+        "pytest-cov",
     ]
 }
 
