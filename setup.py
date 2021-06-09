@@ -50,7 +50,7 @@ def find_long_description():
 # lower limits mostly to be python 3 compatible
 REQUIRED_PACKAGES = ["numpy>=0.16.0,<2.0.0", "pygtrie>=2.1,<3.0"]
 
-EXTRAS_REQUIRE = {"dev": ["black", "flake8", "jupyter", "kenlm", "pylint", "pytest"]}
+EXTRAS_REQUIRE = {"dev": ["black", "flake8", "jupyter", "pylint", "pytest"]}
 
 setup(
     name=find_name(),
