@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Use a matrix for the python version here to make the rest of the lint job setup
-        # as similar as possible to the test job below.
         python-version: [3.8]
         lint-flags:
           - "--run-only-fast-linters"
@@ -31,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[extra]
+          pip install -e .[dev]
       - name: Run lint checks
         run: |
           ./scripts/lint.sh ${{ matrix.lint-flags }}
@@ -49,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[extra]
+          pip install -e .[dev]
       - name: Test with pytest
         run: |
           pytest --cov=pyctcdecode pyctcdecode/tests -m '${{ matrix.markers }}'

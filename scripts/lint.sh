@@ -175,9 +175,6 @@ if  [[
             ("$run_pylint" == 1) && ("$pylint_exit_code" != "0")
         ) || (
             ("$run_bandit" == 1) && ("$bandit_exit_code" != "0")
-        ) || (
-            ("$run_sphinx_build" == 1) && ("$sphinx_build_exit_code" != "0")
-        )
     ]]; then
     echo -e "\n*** Lint failed. ***\n"
 
