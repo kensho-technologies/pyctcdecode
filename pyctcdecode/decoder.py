@@ -7,7 +7,7 @@ import logging
 import math
 import multiprocessing
 import os
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -23,7 +23,7 @@ from .constants import (
     DEFAULT_UNK_LOGP_OFFSET,
     MIN_TOKEN_CLIP_P,
 )
-from .language_model import AbstractLanguageModel, HotwordScorer, LanguageModel
+from .language_model import HotwordScorer, LanguageModel, MultiLanguageModel
 
 
 try:
@@ -46,6 +46,8 @@ LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
 OutputBeam = Tuple[str, Optional[kenlm.State], List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
+# main type for language models
+BaseLanguageModel = Union[LanguageModel, MultiLanguageModel]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
@@ -172,12 +174,12 @@ class BeamSearchDecoderCTC:
     # Specifically we create a random dictionary key during object instantiation which becomes the
     # storage key for the class variable model_container. This allows for multiple model instances
     # to be loaded at the same time.
-    model_container: Dict[bytes, AbstractLanguageModel] = {}
+    model_container: Dict[bytes, Optional[BaseLanguageModel]] = {}
 
     def __init__(
         self,
         alphabet: Alphabet,
-        language_model: Optional[AbstractLanguageModel] = None,
+        language_model: Optional[BaseLanguageModel] = None,
     ) -> None:
         """CTC beam search decoder for token logit matrix.
 
@@ -314,7 +316,7 @@ class BeamSearchDecoderCTC:
             cached_lm_scores = {"": (0.0, 0.0, language_model.get_start_state())}
         else:
             cached_lm_scores = {"": (0.0, 0.0, lm_start_state)}
-        cached_p_lm_scores = {}
+        cached_p_lm_scores: Dict[str, float] = {}
         # start with single beam to expand on
         beams = [EMPTY_START_BEAM]
         # bpe we can also have trailing word boundaries ▁⁇▁ so we may need to remember breaks
@@ -322,7 +324,7 @@ class BeamSearchDecoderCTC:
         for frame_idx, logit_col in enumerate(logits):
             max_idx = logit_col.argmax()
             idx_list = set(np.where(logit_col >= token_min_logp)[0]) | {max_idx}
-            new_beams = []
+            new_beams: List[Beam] = []
             for idx_char in idx_list:
                 p_char = logit_col[idx_char]
                 char = self._idx2vocab[idx_char]
@@ -537,13 +539,13 @@ class BeamSearchDecoderCTC:
         # remove kenlm state to allow multiprocessing
         decoded_beams_mp_safe = [
             (text, frames_list, logit_score, lm_score)
-            for text, frames_list, logit_score, lm_score in decoded_beams
+            for text, _, frames_list, logit_score, lm_score in decoded_beams
         ]
         return decoded_beams_mp_safe
 
     def decode_beams_batch(
         self,
-        pool: multiprocessing.Pool,
+        pool: multiprocessing.pool.Pool,
         logits_list: List[np.ndarray],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
@@ -614,7 +616,7 @@ class BeamSearchDecoderCTC:
 
     def decode_batch(
         self,
-        pool: multiprocessing.Pool,
+        pool: multiprocessing.pool.Pool,
         logits_list: List[np.ndarray],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
