@@ -1,8 +1,8 @@
 import os
 import unittest
 
-from nbconvert.preprocessors import ExecutePreprocessor
-import nbformat
+from nbconvert.preprocessors import ExecutePreprocessor  # type: ignore
+import nbformat  # type: ignore
 
 
 CUR_PATH = os.path.dirname(os.path.abspath(__file__))

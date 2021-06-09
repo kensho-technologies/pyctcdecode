@@ -4,7 +4,7 @@ import logging
 import os
 import re
 
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup  # type: ignore
 
 
 #  https://packaging.python.org/guides/single-sourcing-package-version/
@@ -59,6 +59,8 @@ EXTRAS_REQUIRE = {
         "jupyter",
         "kenlm@https://github.com/kpu/kenlm/archive/master.zip",
         "mypy",
+        "nbconvert",
+        "nbformat",
         "pydocstyle",
         "pylint",
         "pytest",
