@@ -112,7 +112,7 @@ class AbstractLanguageModel(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_start_state(self) -> List["kenlm.State"]:  # noqa: F821
+    def get_start_state(self) -> List["kenlm.State"]:  # noqa: F821, type: kenlm.State
         """Get initial lm state."""
         raise NotImplementedError()
 
