@@ -230,9 +230,9 @@ class BeamSearchDecoderCTC:
                 new_text = _merge_tokens(text, next_word)
                 # note that usually this gets scaled with alpha
                 lm_hw_score = (
-                    logit_score +
-                    hotword_scorer.score(new_text) +
-                    hotword_scorer.score_partial_token(word_part)
+                    logit_score
+                    + hotword_scorer.score(new_text)
+                    + hotword_scorer.score_partial_token(word_part)
                 )
 
                 new_beams.append(

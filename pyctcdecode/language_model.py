@@ -201,9 +201,9 @@ class LanguageModel(AbstractLanguageModel):
         lm_score = self._kenlm_model.BaseScore(prev_state, word, end_state)
         # override UNK prob. use unigram set if we have because it's faster
         if (
-            len(self._unigram_set) > 0 and
-            word not in self._unigram_set or
-            word not in self._kenlm_model
+            len(self._unigram_set) > 0
+            and word not in self._unigram_set
+            or word not in self._kenlm_model
         ):
             lm_score += self.unk_score_offset
         # add end of sentence context if needed
