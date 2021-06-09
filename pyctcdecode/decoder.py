@@ -6,7 +6,7 @@ import heapq
 import logging
 import math
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -41,7 +41,7 @@ Beam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float]
 # same as BEAMS but with current lm score that will be discarded again after sorting
 LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
 # lm state supports single and multi language model
-LMState = Optional[kenlm.State, List[kenlm.State]]
+LMState = Optional[Union[kenlm.State, List[kenlm.State]]]
 # for output beams we return the text, the scores, the lm state and the word frame indices
 # text, last_lm_state, text_frames, logit_score, lm_score
 OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
@@ -687,7 +687,7 @@ def build_ctcdecoder(
     else:
         alphabet = Alphabet.build_alphabet(labels, ctc_token_idx=ctc_token_idx)
     if kenlm_model is not None:
-        language_model = LanguageModel(
+        language_model: Optional[AbstractLanguageModel] = LanguageModel(
             kenlm_model,
             unigrams,
             alpha=alpha,
