@@ -38,7 +38,7 @@ def _convert_bpe_format(token: str) -> str:
         return token[2:]
     elif token == BPE_CHAR:
         return token
-    elif token == "":
+    elif token == "":  # nosec
         return token
     else:
         return BPE_CHAR + token

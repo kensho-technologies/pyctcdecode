@@ -54,6 +54,7 @@ EXTRAS_REQUIRE = {
     "dev": [
         "bandit",
         "black",
+        "codecov",
         "flake8",
         "jupyter",
         "kenlm@https://github.com/kpu/kenlm/archive/master.zip",
