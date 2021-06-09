@@ -5,9 +5,8 @@ import functools
 import heapq
 import logging
 import math
-import multiprocessing
 import os
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -23,7 +22,7 @@ from .constants import (
     DEFAULT_UNK_LOGP_OFFSET,
     MIN_TOKEN_CLIP_P,
 )
-from .language_model import HotwordScorer, LanguageModel, MultiLanguageModel
+from .language_model import AbstractLanguageModel, HotwordScorer, LanguageModel
 
 
 try:
@@ -46,8 +45,6 @@ LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
 OutputBeam = Tuple[str, Optional[kenlm.State], List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
-# main type for language models
-BaseLanguageModel = Union[LanguageModel, MultiLanguageModel]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
@@ -174,12 +171,12 @@ class BeamSearchDecoderCTC:
     # Specifically we create a random dictionary key during object instantiation which becomes the
     # storage key for the class variable model_container. This allows for multiple model instances
     # to be loaded at the same time.
-    model_container: Dict[bytes, Optional[BaseLanguageModel]] = {}
+    model_container: Dict[bytes, Optional[AbstractLanguageModel]] = {}
 
     def __init__(
         self,
         alphabet: Alphabet,
-        language_model: Optional[BaseLanguageModel] = None,
+        language_model: Optional[AbstractLanguageModel] = None,
     ) -> None:
         """CTC beam search decoder for token logit matrix.
 
@@ -200,16 +197,16 @@ class BeamSearchDecoderCTC:
         unk_score_offset: float = None,
         lm_score_boundary: bool = None,
     ) -> None:
-        """Reset parameters that don't require reinstantiating the model."""
+        """Reset parameters that don't require re-instantiating the model."""
         language_model = BeamSearchDecoderCTC.model_container[self._model_key]
         if alpha is not None:
-            language_model.alpha = alpha
+            language_model.alpha = alpha  # type: ignore
         if beta is not None:
-            language_model.beta = beta
+            language_model.beta = beta  # type: ignore
         if unk_score_offset is not None:
-            language_model.unk_score_offset = unk_score_offset
+            language_model.unk_score_offset = unk_score_offset  # type: ignore
         if lm_score_boundary is not None:
-            language_model.score_boundary = lm_score_boundary
+            language_model.score_boundary = lm_score_boundary  # type: ignore
 
     @classmethod
     def clear_class_models(cls) -> None:
@@ -545,7 +542,7 @@ class BeamSearchDecoderCTC:
 
     def decode_beams_batch(
         self,
-        pool: multiprocessing.pool.Pool,
+        pool: Any,
         logits_list: List[np.ndarray],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
@@ -616,7 +613,7 @@ class BeamSearchDecoderCTC:
 
     def decode_batch(
         self,
-        pool: multiprocessing.pool.Pool,
+        pool: Any,
         logits_list: List[np.ndarray],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
