@@ -7,7 +7,7 @@
 A fast and feature-rich CTC beam search decoder for speech recognition written in Python, offering n-gram (kenlm) language model support similar to DeepSpeech, but incorporating many new features such as byte pair encoding to support modern architectures like Nvidia's [Conformer-CTC](tutorials/01_pipeline_nemo.ipynb) or Facebooks's [Wav2Vec2](tutorials/02_asr_huggingface.ipynb).
 
 ``` bash
-pip install .
+pip install pyctcdecode
 ```
 
 ### Main Features:
@@ -26,16 +26,23 @@ pip install .
 import kenlm
 from pyctcdecode import build_ctcdecoder
 
-labels = [" ", "b", "u", "g"]  # tokens as they appear in logits
-kenlm_model = kenlm.Model("/my/dir/kenlm_model.binary")  # load kenlm model
+# load trained kenlm model
+kenlm_model = kenlm.Model("/my/dir/kenlm_model.binary")
 
+# specify alphabet labels as they appear in logits
+labels = [
+    " ", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", 
+    "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+]
+
+# prepare decoder and decode logits via shallow fusion
 decoder = build_ctcdecoder(
     labels,
     kenlm_model, 
     alpha=0.5,  # tuned on a val set 
     beta=1.0,  # tuned on a val set 
 )
-text = decoder.decode(logits)  # decode via shallow fusion
+text = decoder.decode(logits)  
 ```
 
 if the vocabulary is BPE based, adjust the labels and set the `is_bpe` flag (merging of tokens for the LM is handled automatically):
@@ -54,8 +61,8 @@ text = decoder.decode(logits)
 improve domain specificity by adding hotwords during inference:
 
 ``` python
-hotword_list = ["looney tunes", "anthropomorphic"]
-text = decoder.decode(logits, hotword_list=hotword_list)
+hotwords = ["looney tunes", "anthropomorphic"]
+text = decoder.decode(logits, hotwords=hotwords)
 ```
 
 batch support via multiprocessing:
