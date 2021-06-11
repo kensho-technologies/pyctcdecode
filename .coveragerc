@@ -1,8 +1,6 @@
 [run]
+omit = pyctcdecode/tests/*
 dynamic_context = test_function
-omit =
-    # No coverage for tests
-    pyctcdecode/tests/*
 
 [report]
 # Regexes for lines to exclude from consideration
