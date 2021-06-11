@@ -1,5 +1,5 @@
 [run]
-omit = pyctcdecode/tests/*
+omit = tests/*
 dynamic_context = test_function
 
 [report]
