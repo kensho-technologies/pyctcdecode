@@ -2,6 +2,7 @@
 from __future__ import division
 
 import abc
+import logging
 import re
 from typing import Iterable, List, Optional, Pattern, Tuple
 
@@ -17,6 +18,9 @@ from .constants import (
     DEFAULT_UNK_LOGP_OFFSET,
     LOG_BASE_CHANGE_FACTOR,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 try:
