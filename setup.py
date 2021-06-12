@@ -7,10 +7,6 @@ import re
 from setuptools import find_packages, setup  # type: ignore
 
 
-#  https://packaging.python.org/guides/single-sourcing-package-version/
-#  #single-sourcing-the-version
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -57,7 +53,6 @@ EXTRAS_REQUIRE = {
         "codecov",
         "flake8",
         "jupyter",
-        "kenlm@https://github.com/kpu/kenlm/archive/master.zip",
         "mypy",
         "nbconvert",
         "nbformat",

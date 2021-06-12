@@ -2,6 +2,7 @@
 from __future__ import division
 
 import abc
+import logging
 import re
 from typing import Iterable, List, Optional, Pattern, Tuple
 
@@ -19,10 +20,16 @@ from .constants import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 try:
     import kenlm  # type: ignore
 except ImportError:
-    pass
+    logger.warning(
+        "kenlm python bindings are not installed. Most likely you want to install it using: "
+        "pip install https://github.com/kpu/kenlm/archive/master.zip"
+    )
 
 
 def _get_empty_lm_state() -> kenlm.State:

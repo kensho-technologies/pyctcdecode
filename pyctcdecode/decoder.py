@@ -25,10 +25,16 @@ from .constants import (
 from .language_model import AbstractLanguageModel, HotwordScorer, LanguageModel
 
 
+logger = logging.getLogger(__name__)
+
+
 try:
     import kenlm  # type: ignore
 except ImportError:
-    pass
+    logger.warning(
+        "kenlm python bindings are not installed. Most likely you want to install it using: "
+        "pip install https://github.com/kpu/kenlm/archive/master.zip"
+    )
 
 
 # type hints
@@ -52,8 +58,6 @@ OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
 EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
-
-logger = logging.getLogger(__name__)
 
 
 def _normalize_whitespace(text: str) -> str:
