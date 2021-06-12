@@ -30,7 +30,6 @@ except ImportError:
         "kenlm python bindings are not installed. Most likely you want to install it using: "
         "pip install https://github.com/kpu/kenlm/archive/master.zip"
     )
-    pass
 
 
 def _get_empty_lm_state() -> kenlm.State:
