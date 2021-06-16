@@ -4,7 +4,7 @@ from __future__ import division
 import abc
 import logging
 import re
-from typing import Iterable, List, Optional, Pattern, Tuple
+from typing import Collection, Iterable, List, Optional, Pattern, Set, Tuple
 
 import numpy as np
 from pygtrie import CharTrie  # type: ignore
@@ -30,6 +30,22 @@ except ImportError:
         "kenlm python bindings are not installed. Most likely you want to install it using: "
         "pip install https://github.com/kpu/kenlm/archive/master.zip"
     )
+
+
+def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) -> Set[str]:
+    """Filter unigrams down to vocabulary that exists in kenlm_model."""
+    if len(unigrams) < 1000:
+        logger.warning(
+            "Only %s unigrams passed as vocabulary. "
+            "Is this small or artificial data?" % len(unigrams)
+        )
+    unigram_set = set([t for t in set(unigrams) if t in kenlm_model])
+    retained_fraction = len(unigram_set) / len(unigrams)
+    if retained_fraction < 0.1:
+        logger.warning(
+            "Fraction of unigrams retained is low: %s. Is this intentional?" % retained_fraction
+        )
+    return unigram_set
 
 
 def _get_empty_lm_state() -> kenlm.State:
@@ -146,7 +162,7 @@ class LanguageModel(AbstractLanguageModel):
     def __init__(
         self,
         kenlm_model: kenlm.Model,
-        unigrams: Optional[Iterable[str]] = None,
+        unigrams: Optional[Collection[str]] = None,
         alpha: float = DEFAULT_ALPHA,
         beta: float = DEFAULT_BETA,
         unk_score_offset: float = DEFAULT_UNK_LOGP_OFFSET,
@@ -167,7 +183,7 @@ class LanguageModel(AbstractLanguageModel):
             unigram_set = set()
             char_trie = None
         else:
-            unigram_set = set([t for t in set(unigrams) if t in self._kenlm_model])
+            unigram_set = _prepare_unigram_set(unigrams, self._kenlm_model)
             char_trie = CharTrie.fromkeys(unigram_set)
         self._unigram_set = unigram_set
         self._char_trie = char_trie

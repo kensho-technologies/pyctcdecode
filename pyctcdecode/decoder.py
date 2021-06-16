@@ -669,8 +669,6 @@ def build_ctcdecoder(
     beta: float = DEFAULT_BETA,
     unk_score_offset: float = DEFAULT_UNK_LOGP_OFFSET,
     lm_score_boundary: bool = DEFAULT_SCORE_LM_BOUNDARY,
-    ctc_token_idx: Optional[int] = None,
-    is_bpe: bool = False,
 ) -> BeamSearchDecoderCTC:
     """Build a BeamSearchDecoderCTC instance with main functionality.
 
@@ -682,16 +680,11 @@ def build_ctcdecoder(
         beta: weight for length score adjustment of during scoring
         unk_score_offset: amount of log score offset for unknown tokens
         lm_score_boundary: whether to have kenlm respect boundaries when scoring
-        ctc_token_idx: index of ctc blank token within the labels
-        is_bpe: indicate if labels are BPE type
 
     Returns:
         instance of BeamSearchDecoderCTC
     """
-    if is_bpe:
-        alphabet = Alphabet.build_bpe_alphabet(labels, ctc_token_idx=ctc_token_idx)
-    else:
-        alphabet = Alphabet.build_alphabet(labels, ctc_token_idx=ctc_token_idx)
+    alphabet = Alphabet.build_alphabet(labels)
     if kenlm_model is not None:
         language_model: Optional[AbstractLanguageModel] = LanguageModel(
             kenlm_model,
