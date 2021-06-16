@@ -112,12 +112,12 @@ if [ "$run_fast_linters" -eq 1 ]; then
     echo -e "\n*** End of copyright line check run; exit: $copyright_line_check_exit_code ***\n"
 
     echo -e '*** Running isort... ***\n'
-    isort --check-only --settings-path=setup.cfg --diff --recursive $lintable_locations
+    isort --settings-path=setup.cfg --recursive $lintable_locations
     isort_exit_code=$?
     echo -e "\n*** End of isort run; exit: $isort_exit_code ***\n"
 
     echo -e '*** Running black... ***\n'
-    black --check --diff .
+    black .
     black_exit_code=$?
     echo -e "\n*** End of black run; exit: $black_exit_code ***\n"
 
