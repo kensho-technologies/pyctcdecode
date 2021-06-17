@@ -39,11 +39,14 @@ def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) ->
             "Only %s unigrams passed as vocabulary. "
             "Is this small or artificial data?" % len(unigrams)
         )
-    unigram_set = set([t for t in set(unigrams) if t in kenlm_model])
+    unigram_set = set(unigrams)
+    unigram_set = set([t for t in unigram_set if t in kenlm_model])
     retained_fraction = len(unigram_set) / len(unigrams)
     if retained_fraction < 0.1:
         logger.warning(
-            "Fraction of unigrams retained is low: %s. Is this intentional?" % retained_fraction
+            "Only %s%% of unigrams in vocabulary found in kenlm model-- this might mean that your "
+            "vocabulary and language model are incompatible. Is this intentional?" %
+            round(retained_fraction * 100, 1)
         )
     return unigram_set
 

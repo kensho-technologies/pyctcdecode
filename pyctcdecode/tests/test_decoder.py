@@ -418,7 +418,7 @@ class TestDecoder(unittest.TestCase):
         libri_labels_bpe = [UNK_BPE_CHAR, BPE_CHAR * 2] + LIBRI_LABELS[1:]
         zero_row = np.array([[-100.0] * LIBRI_LOGITS.shape[0]]).T
         libri_logits_bpe = np.hstack([zero_row, LIBRI_LOGITS])
-        decoder = build_ctcdecoder(libri_labels_bpe, is_bpe=True)
+        decoder = build_ctcdecoder(libri_labels_bpe)
         text = decoder.decode(libri_logits_bpe)
         expected_text = (
             "i have a good deal of will you remember and what i have set my mind upon no doubt "

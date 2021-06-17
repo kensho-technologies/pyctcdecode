@@ -1,6 +1,6 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import logging
-from typing import List, Optional
+from typing import List
 
 
 UNK_CHAR = "⁇"  # representation of unknown character in regular alphabet
@@ -12,12 +12,13 @@ logger = logging.getLogger(__name__)
 
 def _check_if_bpe(labels: List[str]):
     """Check if input alphabet is BPE or not."""
-    if any([s.startswith("##") for s in labels]) or any([s.startswith(BPE_CHAR) for s in labels]):
+    is_bpe = (
+        any([s.startswith("##") for s in labels]) or any([s.startswith(BPE_CHAR) for s in labels])
+    )
+    if is_bpe:
         logger.info("Alphabet determined to be of BPE style.")
-        is_bpe = True
     else:
         logger.info("Alphabet determined to be of regular style.")
-        is_bpe = False
     return is_bpe
 
 
@@ -52,11 +53,9 @@ def _normalize_regular_alphabet(labels: List[str]) -> List[str]:
             normalized_labels[n] = UNK_CHAR
     # substitute other special characters
     if any([label[:1] == "<" and label[-1:] == ">" for label in normalized_labels]):
-        logger.warning(
-            "Special characters found. Substituting with %s." % UNK_CHAR
-        )
+        logger.warning("Special characters found. Substituting with %s." % UNK_CHAR)
         for n, label in enumerate(normalized_labels):
-            if label[:1] == "<" and label[-1:] == ">":
+            if label.startswith("<") and label.endswith(">"):
                 normalized_labels[n] = UNK_CHAR
     # additional checks
     if any([len(c) > 1 for c in normalized_labels]):
@@ -71,7 +70,7 @@ def _normalize_regular_alphabet(labels: List[str]) -> List[str]:
 
 def _convert_bpe_token_style(token: str) -> str:
     """Convert token from ## style bpe format to ▁ style."""
-    if token[:2] == "##":
+    if token.startswith("##"):
         return token[2:]
     elif token == BPE_CHAR:
         return token
@@ -87,12 +86,6 @@ def _normalize_bpe_alphabet(labels: List[str]) -> List[str]:
     # if BPE is of style '##' then convert it
     if any([s.startswith("##") for s in labels]):
         normalized_labels = [_convert_bpe_token_style(c) for c in normalized_labels]
-    # raise if we don't end up in style '▁'
-    if not any([s.startswith(BPE_CHAR) for s in labels]):
-        raise ValueError(
-            "Unknown BPE format for vocabulary. Supported formats are 1) ▁ for indicating a"
-            " space and 2) ## for continuation of a word."
-        )
     # substitute unk
     for n, label in enumerate(normalized_labels):
         if label.lower() in ("unk", "<unk>", "⁇"):
@@ -107,9 +100,7 @@ def _normalize_bpe_alphabet(labels: List[str]) -> List[str]:
         normalized_labels.append("")
     # substitute other special characters
     if any(["<" in label and ">" in label for label in normalized_labels]):
-        logger.warning(
-            "Special characters found. Substituting with %s." % UNK_BPE_CHAR
-        )
+        logger.warning("Special characters found. Substituting with %s." % UNK_BPE_CHAR)
         for n, label in enumerate(normalized_labels):
             if "<" in label and ">" in label:
                 normalized_labels[n] = UNK_BPE_CHAR
@@ -124,7 +115,7 @@ class Alphabet:
 
     @property
     def is_bpe(self) -> bool:
-        """Whether the alphabet is a bpe encoded one."""
+        """Whether the alphabet is bpe style."""
         return self._is_bpe
 
     @property

@@ -1,7 +1,7 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import unittest
 
-from ..alphabet import Alphabet, _normalize_alphabet, _normalize_bpe_alphabet
+from ..alphabet import Alphabet, _normalize_bpe_alphabet, _normalize_regular_alphabet
 
 
 def _approx_beams(beams, precis=5):
@@ -12,20 +12,20 @@ def _approx_beams(beams, precis=5):
 class TestModelHelpers(unittest.TestCase):
     def test_normalize_alphabet(self):
         alphabet_list = [" ", "a", "b", ""]
-        norm_alphabet = _normalize_alphabet(alphabet_list)
+        norm_alphabet = _normalize_regular_alphabet(alphabet_list)
         expected_alphabet = [" ", "a", "b", ""]
         self.assertListEqual(norm_alphabet, expected_alphabet)
 
         # missing blank char
         alphabet_list = [" ", "a", "b"]
-        norm_alphabet = _normalize_alphabet(alphabet_list)
+        norm_alphabet = _normalize_regular_alphabet(alphabet_list)
         expected_alphabet = [" ", "a", "b", ""]
         self.assertListEqual(norm_alphabet, expected_alphabet)
 
         # invalid input
         alphabet_list = [" ", "a", "bb"]
         with self.assertRaises(ValueError):
-            _normalize_alphabet(alphabet_list)
+            _normalize_regular_alphabet(alphabet_list)
 
     def test_normalize_alphabet_bpe(self):
         # style ▁ input
@@ -71,7 +71,7 @@ class TestModelHelpers(unittest.TestCase):
         self.assertListEqual(alphabet.labels, expected_labels)
 
         label_list = ["B", "##ugs", ""]
-        alphabet_bpe = Alphabet.build_bpe_alphabet(label_list)
+        alphabet_bpe = Alphabet.build_alphabet(label_list)
         expected_labels = ["▁⁇▁", "▁B", "ugs", ""]
         self.assertTrue(alphabet_bpe.is_bpe)
         self.assertListEqual(alphabet_bpe.labels, expected_labels)
