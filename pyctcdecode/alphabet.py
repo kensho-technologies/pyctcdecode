@@ -49,11 +49,11 @@ def _normalize_regular_alphabet(labels: List[str]) -> List[str]:
     # substitute unk
     for n, label in enumerate(normalized_labels):
         if label.lower() in ("unk", "<unk>"):
-            logger.info("Found %s in vocabulary, substituting with %s." % (label, UNK_CHAR))
+            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_CHAR)
             normalized_labels[n] = UNK_CHAR
     # substitute other special characters
     if any([label[:1] == "<" and label[-1:] == ">" for label in normalized_labels]):
-        logger.warning("Special characters found. Substituting with %s." % UNK_CHAR)
+        logger.warning("Special characters found. Substituting with %s.", UNK_CHAR)
         for n, label in enumerate(normalized_labels):
             if label.startswith("<") and label.endswith(">"):
                 normalized_labels[n] = UNK_CHAR
@@ -84,7 +84,7 @@ def _normalize_bpe_alphabet(labels: List[str]) -> List[str]:
     # substitute unk
     for n, label in enumerate(normalized_labels):
         if label.lower() in ("unk", "<unk>", "⁇"):
-            logger.info("Found %s in vocabulary, substituting with %s." % (label, UNK_BPE_CHAR))
+            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_BPE_CHAR)
             normalized_labels[n] = UNK_BPE_CHAR
     if UNK_BPE_CHAR not in normalized_labels:
         logger.info("UNK not found in labels, prepending to beginning.")
@@ -95,7 +95,7 @@ def _normalize_bpe_alphabet(labels: List[str]) -> List[str]:
         normalized_labels.append("")
     # substitute other special characters
     if any(["<" in label and ">" in label for label in normalized_labels]):
-        logger.warning("Special characters found. Substituting with %s." % UNK_BPE_CHAR)
+        logger.warning("Special characters found. Substituting with %s.", UNK_BPE_CHAR)
         for n, label in enumerate(normalized_labels):
             if "<" in label and ">" in label:
                 normalized_labels[n] = UNK_BPE_CHAR
