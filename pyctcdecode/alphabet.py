@@ -72,9 +72,7 @@ def _convert_bpe_token_style(token: str) -> str:
     """Convert token from ## style bpe format to ▁ style."""
     if token.startswith("##"):
         return token[2:]
-    elif token == BPE_CHAR:
-        return token
-    elif token == "":  # nosec
+    elif token in ("", BPE_CHAR, UNK_BPE_CHAR):
         return token
     else:
         return BPE_CHAR + token
@@ -83,9 +81,6 @@ def _convert_bpe_token_style(token: str) -> str:
 def _normalize_bpe_alphabet(labels: List[str]) -> List[str]:
     """Normalize alphabet for bpe decoder."""
     normalized_labels = labels[:]
-    # if BPE is of style '##' then convert it
-    if any([s.startswith("##") for s in labels]):
-        normalized_labels = [_convert_bpe_token_style(c) for c in normalized_labels]
     # substitute unk
     for n, label in enumerate(normalized_labels):
         if label.lower() in ("unk", "<unk>", "⁇"):
@@ -104,6 +99,9 @@ def _normalize_bpe_alphabet(labels: List[str]) -> List[str]:
         for n, label in enumerate(normalized_labels):
             if "<" in label and ">" in label:
                 normalized_labels[n] = UNK_BPE_CHAR
+    # if BPE is of style '##' then convert it
+    if any([s.startswith("##") for s in labels]):
+        normalized_labels = [_convert_bpe_token_style(c) for c in normalized_labels]
     return normalized_labels
 
 
@@ -126,8 +124,9 @@ class Alphabet:
     @classmethod
     def build_alphabet(cls, labels: List[str]) -> "Alphabet":
         """Make an alphabet from labels in standardized format for decoder."""
-        if _check_if_bpe(labels):
+        is_bpe = _check_if_bpe(labels)
+        if is_bpe:
             normalized_labels = _normalize_bpe_alphabet(labels)
         else:
             normalized_labels = _normalize_regular_alphabet(labels)
-        return cls(normalized_labels, False)
+        return cls(normalized_labels, is_bpe)

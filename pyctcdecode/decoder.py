@@ -6,7 +6,7 @@ import heapq
 import logging
 import math
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -664,7 +664,7 @@ class BeamSearchDecoderCTC:
 def build_ctcdecoder(
     labels: List[str],
     kenlm_model: Optional[kenlm.Model] = None,
-    unigrams: Optional[Iterable[str]] = None,
+    unigrams: Optional[Collection[str]] = None,
     alpha: float = DEFAULT_ALPHA,
     beta: float = DEFAULT_BETA,
     unk_score_offset: float = DEFAULT_UNK_LOGP_OFFSET,
@@ -675,7 +675,7 @@ def build_ctcdecoder(
     Args:
         labels: class containing the labels for input logit matrices
         kenlm_model: instance of kenlm n-gram language model `kenlm.Model`
-        unigrams: list of known word unigrams
+        unigrams: list of known word unigrams, this will greatly improve accuracy
         alpha: weight for language model during shallow fusion
         beta: weight for length score adjustment of during scoring
         unk_score_offset: amount of log score offset for unknown tokens

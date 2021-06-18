@@ -41,7 +41,7 @@ def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) ->
         )
     unigram_set = set(unigrams)
     unigram_set = set([t for t in unigram_set if t in kenlm_model])
-    retained_fraction = len(unigram_set) / len(unigrams)
+    retained_fraction = 1.0 if len(unigrams) == 0 else len(unigram_set) / len(unigrams)
     if retained_fraction < 0.1:
         logger.warning(
             "Only %s%% of unigrams in vocabulary found in kenlm model-- this might mean that your "
@@ -183,6 +183,7 @@ class LanguageModel(AbstractLanguageModel):
         """
         self._kenlm_model = kenlm_model
         if unigrams is None:
+            logger.warning("No known unigrams provided, decoding results might be a lot worse.")
             unigram_set = set()
             char_trie = None
         else:
@@ -221,8 +222,10 @@ class LanguageModel(AbstractLanguageModel):
     def score_partial_token(self, partial_token: str) -> float:
         """Get partial token score."""
         if self._char_trie is None:
-            return 0.0
-        unk_score = self.unk_score_offset * int(self._char_trie.has_node(partial_token) == 0)
+            is_oov = 1.0
+        else:
+            is_oov = int(self._char_trie.has_node(partial_token) == 0)
+        unk_score = self.unk_score_offset * is_oov
         # if unk token length exceeds expected length then additionally decrease score
         if len(partial_token) > AVG_TOKEN_LEN:
             unk_score = unk_score * len(partial_token) / AVG_TOKEN_LEN
