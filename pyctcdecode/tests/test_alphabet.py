@@ -22,11 +22,6 @@ class TestModelHelpers(unittest.TestCase):
         expected_alphabet = [" ", "a", "b", ""]
         self.assertListEqual(norm_alphabet, expected_alphabet)
 
-        # invalid input
-        alphabet_list = [" ", "a", "bb"]
-        with self.assertRaises(ValueError):
-            _normalize_regular_alphabet(alphabet_list)
-
     def test_normalize_alphabet_bpe(self):
         # style ▁ input
         alphabet_list = ["▁⁇▁", "▁B", "ugs", "▁", "▁bunny", ""]
@@ -57,11 +52,6 @@ class TestModelHelpers(unittest.TestCase):
         norm_alphabet = _normalize_bpe_alphabet(alphabet_list)
         expected_alphabet = ["▁⁇▁", "▁B", "ugs", "▁", ""]
         self.assertListEqual(norm_alphabet, expected_alphabet)
-
-        # invalid input
-        alphabet_list = ["B", "##ugs", "▁bunny", ""]
-        with self.assertRaises(ValueError):
-            _normalize_bpe_alphabet(alphabet_list)
 
     def test_alphabets(self):
         label_list = [" ", "a", "b", ""]

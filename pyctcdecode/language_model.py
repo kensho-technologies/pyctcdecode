@@ -36,8 +36,8 @@ def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) ->
     """Filter unigrams down to vocabulary that exists in kenlm_model."""
     if len(unigrams) < 1000:
         logger.warning(
-            "Only %s unigrams passed as vocabulary. "
-            "Is this small or artificial data?", len(unigrams)
+            "Only %s unigrams passed as vocabulary. Is this small or artificial data?",
+            len(unigrams),
         )
     unigram_set = set(unigrams)
     unigram_set = set([t for t in unigram_set if t in kenlm_model])
@@ -46,7 +46,7 @@ def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) ->
         logger.warning(
             "Only %s%% of unigrams in vocabulary found in kenlm model-- this might mean that your "
             "vocabulary and language model are incompatible. Is this intentional?",
-            round(retained_fraction * 100, 1)
+            round(retained_fraction * 100, 1),
         )
     return unigram_set
 
