@@ -32,6 +32,24 @@ except ImportError:
     )
 
 
+def load_unigram_set_from_arpa(arpa_path: str) -> Set[str]:
+    """Read unigrams from arpa file."""
+    unigrams = set()
+    with open(arpa_path) as f:
+        start_1_gram = False
+        for line in f:
+            line = line.strip()
+            if line == "\\1-grams:":
+                start_1_gram = True
+            elif line == "\\2-grams:":
+                break
+            if start_1_gram and len(line) > 0:
+                parts = line.split("\t")
+                if len(parts) == 3:
+                    unigrams.add(parts[1])
+    return unigrams
+
+
 def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) -> Set[str]:
     """Filter unigrams down to vocabulary that exists in kenlm_model."""
     if len(unigrams) < 1000:

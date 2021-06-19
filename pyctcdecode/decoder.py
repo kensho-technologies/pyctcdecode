@@ -22,7 +22,12 @@ from .constants import (
     DEFAULT_UNK_LOGP_OFFSET,
     MIN_TOKEN_CLIP_P,
 )
-from .language_model import AbstractLanguageModel, HotwordScorer, LanguageModel
+from .language_model import (
+    AbstractLanguageModel,
+    HotwordScorer,
+    LanguageModel,
+    load_unigram_set_from_arpa,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -663,7 +668,7 @@ class BeamSearchDecoderCTC:
 
 def build_ctcdecoder(
     labels: List[str],
-    kenlm_model: Optional[kenlm.Model] = None,
+    kenlm_model_path: Optional[str] = None,
     unigrams: Optional[Collection[str]] = None,
     alpha: float = DEFAULT_ALPHA,
     beta: float = DEFAULT_BETA,
@@ -674,7 +679,7 @@ def build_ctcdecoder(
 
     Args:
         labels: class containing the labels for input logit matrices
-        kenlm_model: instance of kenlm n-gram language model `kenlm.Model`
+        kenlm_model_path: path to kenlm n-gram language model
         unigrams: list of known word unigrams, this will greatly improve accuracy
         alpha: weight for language model during shallow fusion
         beta: weight for length score adjustment of during scoring
@@ -684,6 +689,9 @@ def build_ctcdecoder(
     Returns:
         instance of BeamSearchDecoderCTC
     """
+    kenlm_model = None if kenlm_model_path is None else kenlm.Model(kenlm_model_path)
+    if unigrams is None and kenlm_model_path is not None and kenlm_model_path[-5:] == ".arpa":
+        unigrams = load_unigram_set_from_arpa(kenlm_model_path)
     alphabet = Alphabet.build_alphabet(labels)
     if kenlm_model is not None:
         language_model: Optional[AbstractLanguageModel] = LanguageModel(
