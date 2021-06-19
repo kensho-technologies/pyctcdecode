@@ -1,6 +1,6 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import logging
-from typing import List
+from typing import Collection, List
 
 
 UNK_CHAR = "⁇"  # representation of unknown character in regular alphabet
@@ -130,3 +130,11 @@ class Alphabet:
         else:
             normalized_labels = _normalize_regular_alphabet(labels)
         return cls(normalized_labels, is_bpe)
+
+
+def verify_alphabet_coverage(alphabet: Alphabet, unigrams: Collection[str]) -> None:
+    """Verify if alphabet covers a given unigrams."""
+    label_chars = set(alphabet.labels)
+    unigram_sample_chars = set("".join(unigrams[:100]))
+    if len(unigram_sample_chars - label_chars) / len(unigram_sample_chars) > 0.2:
+        logger.warning("Unigrams and labels don't seem to agree.")

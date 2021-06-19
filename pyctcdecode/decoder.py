@@ -10,7 +10,7 @@ from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
-from .alphabet import BPE_CHAR, Alphabet
+from .alphabet import BPE_CHAR, Alphabet, verify_alphabet_coverage
 from .constants import (
     DEFAULT_ALPHA,
     DEFAULT_BEAM_WIDTH,
@@ -693,6 +693,8 @@ def build_ctcdecoder(
     if unigrams is None and kenlm_model_path is not None and kenlm_model_path[-5:] == ".arpa":
         unigrams = load_unigram_set_from_arpa(kenlm_model_path)
     alphabet = Alphabet.build_alphabet(labels)
+    if unigrams is not None:
+        verify_alphabet_coverage(alphabet, unigrams)
     if kenlm_model is not None:
         language_model: Optional[AbstractLanguageModel] = LanguageModel(
             kenlm_model,
