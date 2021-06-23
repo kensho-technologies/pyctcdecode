@@ -117,7 +117,7 @@ if [ "$run_fast_linters" -eq 1 ]; then
     echo -e "\n*** End of isort run; exit: $isort_exit_code ***\n"
 
     echo -e '*** Running black... ***\n'
-    black --config pyproject.toml .
+    black .
     black_exit_code=$?
     echo -e "\n*** End of black run; exit: $black_exit_code ***\n"
 
