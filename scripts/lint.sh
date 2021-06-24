@@ -119,10 +119,10 @@ if [ "$run_fast_linters" -eq 1 ]; then
 
     echo -e '*** Running isort... ***\n'
     if [ "$fix" -eq 1 ]; then
-        isort --settings-path=setup.cfg --recursive $lintable_locations
+        isort --settings-path=setup.cfg $lintable_locations
         isort_exit_code=$?
     else
-        isort --check-only --settings-path=setup.cfg --diff --recursive $lintable_locations
+        isort --check-only --settings-path=setup.cfg --diff $lintable_locations
         isort_exit_code=$?
     fi
     echo -e "\n*** End of isort run; exit: $isort_exit_code ***\n"
