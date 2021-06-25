@@ -52,6 +52,7 @@ EXTRAS_REQUIRE = {
         "black",
         "codecov",
         "flake8",
+        "isort>=5.0.0,<6",
         "jupyter",
         "mypy",
         "nbconvert",
@@ -77,10 +78,7 @@ setup(
     install_requires=REQUIRED_PACKAGES,
     extras_require=EXTRAS_REQUIRE,
     package_data={
-        "": [
-            "tests/sample_data/bugs_bunny_kenlm.arpa",
-            "tests/sample_data/libri_logits.json",
-        ]
+        "": ["tests/sample_data/bugs_bunny_kenlm.arpa", "tests/sample_data/libri_logits.json"]
     },
     dependency_links=[],
 )
