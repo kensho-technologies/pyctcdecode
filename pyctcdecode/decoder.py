@@ -17,8 +17,8 @@ from .constants import (
     DEFAULT_BETA,
     DEFAULT_HOTWORD_WEIGHT,
     DEFAULT_MIN_TOKEN_LOGP,
-    DEFAULT_PRUNE_LOGP,
     DEFAULT_PRUNE_BEAMS,
+    DEFAULT_PRUNE_LOGP,
     DEFAULT_SCORE_LM_BOUNDARY,
     DEFAULT_UNK_LOGP_OFFSET,
     MIN_TOKEN_CLIP_P,
@@ -557,7 +557,7 @@ class BeamSearchDecoderCTC:
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
-        prune_history: bool=DEFAULT_PRUNE_BEAMS,
+        prune_history: bool = DEFAULT_PRUNE_BEAMS,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
     ) -> List[List[OutputBeamMPSafe]]:

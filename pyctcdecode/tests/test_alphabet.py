@@ -27,8 +27,6 @@ class TestModelHelpers(unittest.TestCase):
         with self.assertRaises(ValueError):
             _normalize_alphabet(alphabet_list)
 
-
-
     def test_normalize_alphabet_bpe(self):
         # style ▁ input
         alphabet_list = ["▁⁇▁", "▁B", "ugs", "▁", "▁bunny", ""]
@@ -92,6 +90,6 @@ class TestModelHelpers(unittest.TestCase):
 
     def test_unk_bpe_char_assignment(self):
         """Ensure assignment of unk_bpe_char in alphabet normalization."""
-        label_list = ["##<unk>",  "##hi"]
+        label_list = ["##<unk>", "##hi"]
         labels = Alphabet.build_bpe_alphabet(label_list).labels
-        self.assertEqual(labels, ['▁⁇▁', 'hi', ''])
+        self.assertEqual(labels, ["▁⁇▁", "hi", ""])

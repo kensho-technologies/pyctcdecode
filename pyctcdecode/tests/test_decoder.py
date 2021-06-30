@@ -1,30 +1,14 @@
 # Copyright 2021-present Kensho Technologies, LLC.
-from collections import ChainMap
 import json
 import math
 import multiprocessing
 import os
-import re
 import unittest
 
-from kenlm import Model
-from pyctcdecode.decoder import Alphabet, LanguageModel
-from pyctcdecode.language_model import MultiLanguageModel
-from pygtrie import CharTrie
-
-import pyctcdecode.decoder
-import re
-from collections import ChainMap
-from hypothesis import given, strategies as st
-from kenlm import Model
-from pyctcdecode.decoder import Alphabet, LanguageModel
-from pyctcdecode.language_model import MultiLanguageModel
-from pygtrie import CharTrie
-
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, settings
+from hypothesis import strategies as st
 import kenlm  # type: ignore
 import numpy as np
-from pygtrie import CharTrie
 
 from ..alphabet import BPE_CHAR, UNK_BPE_CHAR, Alphabet
 from ..decoder import (
@@ -38,16 +22,18 @@ from ..decoder import (
 )
 from ..language_model import LanguageModel, MultiLanguageModel
 
+
 def _random_matrix(rows: int, cols: int) -> np.ndarray:
     return np.random.normal(size=(rows, cols))
+
 
 def _random_logits(rows: int, cols: int) -> np.ndarray:
     """Sample random logit matrix of given dimension."""
     xs = np.exp(_random_matrix(rows, cols))
     ps = (xs.T / np.sum(xs, axis=1)).T
-    assert(len(ps) == rows)
     logits = np.log(ps)
     return logits
+
 
 def _random_libri_logits(N: int) -> np.ndarray:
     return _random_logits(N, len(LIBRI_LABELS) + 1)
@@ -280,26 +266,46 @@ class TestDecoder(unittest.TestCase):
         with multiprocessing.Pool() as pool:
             text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
-            [('bugs bunny',
-              [('bugs', (0, 4)), ('bunny', (7, 13))],
-              -2.853399551509947,
-              0.14660044849005294)],
-            [('bugs bunny',
-              [('bugs', (0, 4)), ('bunny', (7, 13))],
-              -2.853399551509947,
-              0.14660044849005294)],
-            [('bugs bunny',
-              [('bugs', (0, 4)), ('bunny', (7, 13))],
-              -2.853399551509947,
-              0.14660044849005294)],
-            [('bugs bunny',
-              [('bugs', (0, 4)), ('bunny', (7, 13))],
-              -2.853399551509947,
-              0.14660044849005294)],
-            [('bugs bunny',
-              [('bugs', (0, 4)), ('bunny', (7, 13))],
-              -2.853399551509947,
-              0.14660044849005294)]
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
         ]
         self.assertListEqual(expected_text_list, text_list)
 
@@ -503,18 +509,23 @@ class TestDecoder(unittest.TestCase):
     #     decoder.batch_decode(logits)
 
     @settings(deadline=500)
-    @given(st.builds(_random_matrix, st.integers(min_value=0, max_value=20), st.integers(min_value=29, max_value=29)))
+    @given(
+        st.builds(
+            _random_matrix,
+            st.integers(min_value=0, max_value=20),
+            st.integers(min_value=29, max_value=29),
+        )
+    )
     def test_invalid_logit_inputs(self, logits: np.ndarray):
         decoder = build_ctcdecoder(LIBRI_LABELS)
         decoder.decode(logits)
 
-
     @given(
-    alpha=st.one_of(st.none(), st.floats()),
-    beta=st.one_of(st.none(), st.floats()),
-    unk_score_offset=st.one_of(st.none(), st.floats()),
-    lm_score_boundary=st.one_of(st.none(), st.booleans()),
-)
+        alpha=st.one_of(st.none(), st.floats()),
+        beta=st.one_of(st.none(), st.floats()),
+        unk_score_offset=st.one_of(st.none(), st.floats()),
+        lm_score_boundary=st.one_of(st.none(), st.booleans()),
+    )
     def test_fuzz_reset_params(self, alpha, beta, unk_score_offset, lm_score_boundary):
         language_model = LanguageModel(TEST_KENLM_MODEL, alpha=0.0)
         decoder = build_ctcdecoder(SAMPLE_LABELS, language_model)
@@ -523,4 +534,4 @@ class TestDecoder(unittest.TestCase):
             beta=beta,
             unk_score_offset=unk_score_offset,
             lm_score_boundary=lm_score_boundary,
-    )
+        )
