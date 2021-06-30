@@ -477,7 +477,7 @@ class BeamSearchDecoderCTC:
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
-        prune_history: bool = False,
+        prune_history: bool = DEFAULT_PRUNE_BEAMS,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
         lm_start_state: LMState = None,
