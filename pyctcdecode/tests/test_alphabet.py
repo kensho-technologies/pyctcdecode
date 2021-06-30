@@ -83,7 +83,7 @@ class TestModelHelpers(unittest.TestCase):
             Alphabet.build_alphabet(label_list)
 
     def test_unknown_bpe_format(self):
-        """Ensure detection a bad bpe format."""
+        """Ensure detection of a bad bpe format."""
         label_list = ["a", "b", "c", " ", ""]
         with self.assertRaises(ValueError):
             Alphabet.build_bpe_alphabet(label_list)
