@@ -18,6 +18,7 @@ from .constants import (
     DEFAULT_HOTWORD_WEIGHT,
     DEFAULT_MIN_TOKEN_LOGP,
     DEFAULT_PRUNE_LOGP,
+    DEFAULT_PRUNE_BEAMS,
     DEFAULT_SCORE_LM_BOUNDARY,
     DEFAULT_UNK_LOGP_OFFSET,
     MIN_TOKEN_CLIP_P,
@@ -76,7 +77,7 @@ def _sum_log_scores(s1: float, s2: float) -> float:
     if s1 >= s2:
         log_sum = s1 + math.log(1 + math.exp(s2 - s1))
     else:
-        log_sum = s2 + math.log(math.exp(s1 - s2) + 1)
+        log_sum = s2 + math.log(1 + math.exp(s1 - s2))
     return log_sum
 
 
@@ -556,6 +557,7 @@ class BeamSearchDecoderCTC:
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
+        prune_history: bool=DEFAULT_PRUNE_BEAMS,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
     ) -> List[List[OutputBeamMPSafe]]:
@@ -579,6 +581,7 @@ class BeamSearchDecoderCTC:
             beam_prune_logp=beam_prune_logp,
             token_min_logp=token_min_logp,
             hotwords=hotwords,
+            prune_history=prune_history,
             hotword_weight=hotword_weight,
         )
         decoded_beams_list = pool.map(p_decode, logits_list)
