@@ -506,7 +506,7 @@ class TestDecoder(unittest.TestCase):
         st.builds(
             _random_matrix,
             st.integers(min_value=0, max_value=20),
-            st.integers(min_value=29, max_value=29),
+            st.integers(min_value=len(LIBRI_LABELS) + 1, max_value=len(LIBRI_LABELS) + 1),
         )
     )
     def test_invalid_logit_inputs(self, logits: np.ndarray):
