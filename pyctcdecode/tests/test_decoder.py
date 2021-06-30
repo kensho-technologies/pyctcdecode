@@ -501,13 +501,6 @@ class TestDecoder(unittest.TestCase):
         decoder = build_ctcdecoder(LIBRI_LABELS)
         decoder.decode(logits)
 
-    # @settings(deadline=1000)
-    # @given(st.builds(_random_libri_logits, st.integers(min_value=0, max_value=20)))
-    # def test_fuzz_decode_batch(self, logits: np.ndarray):
-    #     """Ensure decoder is robust to random logit inputs."""
-    #     decoder = build_ctcdecoder(LIBRI_LABELS)
-    #     decoder.batch_decode(logits)
-
     @settings(deadline=1000)
     @given(
         st.builds(
