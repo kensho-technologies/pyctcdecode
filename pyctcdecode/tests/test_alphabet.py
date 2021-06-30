@@ -1,9 +1,5 @@
 # Copyright 2021-present Kensho Technologies, LLC.
-import logging
 import unittest
-
-logger = logging.getLogger("foo")
-logger.setLevel(logging.DEBUG)
 
 from ..alphabet import Alphabet, _normalize_alphabet, _normalize_bpe_alphabet
 
