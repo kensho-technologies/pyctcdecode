@@ -33,6 +33,7 @@ pip-delete-this-directory.txt
 .coverage.*
 coverage.xml
 .pytest_cache/
+.hypothesis
 
 # Jupyter Notebook
 .ipynb_checkpoints

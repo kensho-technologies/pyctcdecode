@@ -75,3 +75,21 @@ class TestModelHelpers(unittest.TestCase):
         expected_labels = ["▁⁇▁", "▁B", "ugs", ""]
         self.assertTrue(alphabet_bpe.is_bpe)
         self.assertListEqual(alphabet_bpe.labels, expected_labels)
+
+    def test_missing_space(self):
+        """Ensure detection of missing space char in vocabulary."""
+        label_list = ["a", "b", "c", ""]
+        with self.assertRaises(ValueError):
+            Alphabet.build_alphabet(label_list)
+
+    def test_unknown_bpe_format(self):
+        """Ensure detection of a bad bpe format."""
+        label_list = ["a", "b", "c", " ", ""]
+        with self.assertRaises(ValueError):
+            Alphabet.build_bpe_alphabet(label_list)
+
+    def test_unk_bpe_char_assignment(self):
+        """Ensure assignment of unk_bpe_char in alphabet normalization."""
+        label_list = ["##<unk>", "##hi"]
+        labels = Alphabet.build_bpe_alphabet(label_list).labels
+        self.assertEqual(labels, ["▁⁇▁", "hi", ""])
