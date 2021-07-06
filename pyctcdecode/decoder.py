@@ -6,10 +6,9 @@ import heapq
 import logging
 import math
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, TypeVar, cast, SupportsIndex
+from typing import Any, Dict, Iterable, List, Optional, SupportsIndex, Tuple, Union, cast
 
 import numpy as np
-from numpy import typing as npt
 
 from .alphabet import BPE_CHAR, Alphabet
 from .constants import (
@@ -65,6 +64,7 @@ EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 def _normalize_whitespace(text: str) -> str:
     """Efficiently normalize whitespace."""
     return " ".join(text.split())
+
 
 def _sort_and_trim_beams(beams: List[LMBeam], beam_width: int) -> List[LMBeam]:
     """Take top N beams by score."""
