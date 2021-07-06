@@ -63,7 +63,6 @@ class HotwordScorer:
         """Contains."""
         return cast(bool, self._char_trie.has_node(item) > 0)
 
-
     def score(self, text: str) -> float:
         """Get total hotword score for input text."""
         return self._weight * len(self._match_ptn.findall(text))
@@ -195,7 +194,7 @@ class LanguageModel(AbstractLanguageModel):
         """Calculate final lm score."""
         if self.score_boundary:
             end_state = _get_empty_lm_state()
-            score: float = (self._kenlm_model.BaseScore(start_state, "</s>", end_state))
+            score: float = self._kenlm_model.BaseScore(start_state, "</s>", end_state)
         else:
             score = 0.0
         return score
