@@ -156,7 +156,8 @@ fi
 if [ "$run_mypy" -eq 1 ]; then
     echo -e '*** Running mypy... ***\n'
     echo `mypy --version`
-    echo "lintable locations:" $lintable_locations
+    echo "lintable locacations:" $lintable_locations
+    echo "lintable locacations:" `ls $lintable_locations`
     mypy $lintable_locations
     mypy_exit_code=$?
     echo -e "\n*** End of mypy run, exit: $mypy_exit_code ***\n"
