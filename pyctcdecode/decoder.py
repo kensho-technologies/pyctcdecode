@@ -6,9 +6,10 @@ import heapq
 import logging
 import math
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, TypeVar, cast, SupportsIndex
 
 import numpy as np
+from numpy import typing as npt
 
 from .alphabet import BPE_CHAR, Alphabet
 from .constants import (
@@ -65,8 +66,7 @@ def _normalize_whitespace(text: str) -> str:
     """Efficiently normalize whitespace."""
     return " ".join(text.split())
 
-
-def _sort_and_trim_beams(beams: list, beam_width: int) -> list:
+def _sort_and_trim_beams(beams: List[LMBeam], beam_width: int) -> List[LMBeam]:
     """Take top N beams by score."""
     return heapq.nlargest(beam_width, beams, key=lambda x: x[-1])
 
@@ -92,8 +92,8 @@ def _log_softmax(x: np.ndarray, axis: Optional[int] = None) -> np.ndarray:
     exp_tmp = np.exp(tmp)
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
-        s = np.sum(exp_tmp, axis=axis, keepdims=True)  # type: ignore
-        out = np.log(s)
+        s = np.sum(exp_tmp, axis=cast(SupportsIndex, axis), keepdims=True)
+        out: np.ndarray = np.log(s)
     out = tmp - out
     return out
 
@@ -200,10 +200,10 @@ class BeamSearchDecoderCTC:
 
     def reset_params(
         self,
-        alpha: float = None,
-        beta: float = None,
-        unk_score_offset: float = None,
-        lm_score_boundary: bool = None,
+        alpha: Optional[float] = None,
+        beta: Optional[float] = None,
+        unk_score_offset: Optional[float] = None,
+        lm_score_boundary: Optional[bool] = None,
     ) -> None:
         """Reset parameters that don't require re-instantiating the model."""
         language_model = BeamSearchDecoderCTC.model_container[self._model_key]
@@ -584,7 +584,7 @@ class BeamSearchDecoderCTC:
             prune_history=prune_history,
             hotword_weight=hotword_weight,
         )
-        decoded_beams_list = pool.map(p_decode, logits_list)
+        decoded_beams_list: List[List[OutputBeamMPSafe]] = pool.map(p_decode, logits_list)
         return decoded_beams_list
 
     def decode(
@@ -655,7 +655,7 @@ class BeamSearchDecoderCTC:
             hotwords=hotwords,
             hotword_weight=hotword_weight,
         )
-        decoded_text_list = pool.map(p_decode, logits_list)
+        decoded_text_list: List[str] = pool.map(p_decode, logits_list)
         return decoded_text_list
 
 
