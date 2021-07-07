@@ -44,7 +44,7 @@ def find_long_description() -> str:
 
 # upper limits are untested, not necessarily conflicting
 # lower limits mostly to be python 3 compatible
-REQUIRED_PACKAGES = ["numpy>=0.21.0,<2.0.0", "pygtrie>=2.1,<3.0", "hypothesis>=6.14,<7"]
+REQUIRED_PACKAGES = ["numpy>=1.20.0,<2.0.0", "pygtrie>=2.1,<3.0", "hypothesis>=6.14,<7"]
 
 EXTRAS_REQUIRE = {
     "dev": [
