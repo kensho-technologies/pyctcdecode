@@ -9,6 +9,7 @@ import os
 from typing import Any, Dict, Iterable, List, Optional, SupportsIndex, Tuple, Union, cast
 
 import numpy as np
+from numpy.typing import NDArray
 
 from .alphabet import BPE_CHAR, Alphabet
 from .constants import (
@@ -54,7 +55,7 @@ LMState = Optional[Union[kenlm.State, List[kenlm.State]]]
 OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
-
+NDArrayFloat = NDArray[np.float64]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
@@ -81,7 +82,7 @@ def _sum_log_scores(s1: float, s2: float) -> float:
     return log_sum
 
 
-def _log_softmax(x: np.ndarray, axis: Optional[int] = None) -> np.ndarray:
+def _log_softmax(x: NDArrayFloat, axis: Optional[int] = None) -> NDArrayFloat:
     """Logarithm of softmax function, following implementation of scipy.special."""
     x_max = np.amax(x, axis=axis, keepdims=True)
     if x_max.ndim > 0:
@@ -93,7 +94,7 @@ def _log_softmax(x: np.ndarray, axis: Optional[int] = None) -> np.ndarray:
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
         s = np.sum(exp_tmp, axis=cast(SupportsIndex, axis), keepdims=True)
-        out: np.ndarray = np.log(s)
+        out: NDArrayFloat = np.log(s)
     out = tmp - out
     return out
 
@@ -305,7 +306,7 @@ class BeamSearchDecoderCTC:
 
     def _decode_logits(
         self,
-        logits: np.ndarray,
+        logits: NDArrayFloat,
         beam_width: int,
         beam_prune_logp: float,
         token_min_logp: float,
@@ -473,7 +474,7 @@ class BeamSearchDecoderCTC:
 
     def decode_beams(
         self,
-        logits: np.ndarray,
+        logits: NDArrayFloat,
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -525,7 +526,7 @@ class BeamSearchDecoderCTC:
 
     def _decode_beams_mp_safe(
         self,
-        logits: np.ndarray,
+        logits: NDArrayFloat,
         beam_width: int,
         beam_prune_logp: float,
         token_min_logp: float,
@@ -553,7 +554,7 @@ class BeamSearchDecoderCTC:
     def decode_beams_batch(
         self,
         pool: Any,
-        logits_list: List[np.ndarray],
+        logits_list: List[NDArrayFloat],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -589,7 +590,7 @@ class BeamSearchDecoderCTC:
 
     def decode(
         self,
-        logits: np.ndarray,
+        logits: NDArrayFloat,
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -626,7 +627,7 @@ class BeamSearchDecoderCTC:
     def decode_batch(
         self,
         pool: Any,
-        logits_list: List[np.ndarray],
+        logits_list: List[NDArrayFloat],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
