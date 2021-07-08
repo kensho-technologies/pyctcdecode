@@ -47,7 +47,7 @@ decoder = build_ctcdecoder(
 text = decoder.decode(logits)
 ```
 
-If the vocabulary is BPE based, adjust the labels and set the `is_bpe` flag (merging of tokens for the LM is handled automatically):
+If the vocabulary is BPE-based, adjust the labels and set the `is_bpe` flag (merging of tokens for the LM is handled automatically):
 
 ``` python
 labels = ["<unk>", "▁bug", "s", "▁bunny"]
