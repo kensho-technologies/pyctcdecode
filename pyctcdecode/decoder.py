@@ -11,7 +11,7 @@ from typing import Any, Collection, Dict, Iterable, List, Optional, SupportsInde
 import numpy as np
 from numpy.typing import NDArray
 
-from .alphabet import BPE_CHAR, Alphabet, verify_alphabet_coverage
+from .alphabet import BPE_TOKEN, Alphabet, verify_alphabet_coverage
 from .constants import (
     DEFAULT_ALPHA,
     DEFAULT_BEAM_WIDTH,
@@ -367,13 +367,13 @@ class BeamSearchDecoderCTC:
                             )
                         )
                     # if bpe and leading space char
-                    elif self._is_bpe and (char[:1] == BPE_CHAR or force_next_break):
+                    elif self._is_bpe and (char[:1] == BPE_TOKEN or force_next_break):
                         force_next_break = False
                         # some tokens are bounded on both sides like ▁⁇▁
                         clean_char = char
-                        if char[:1] == BPE_CHAR:
+                        if char[:1] == BPE_TOKEN:
                             clean_char = clean_char[1:]
-                        if char[-1:] == BPE_CHAR:
+                        if char[-1:] == BPE_TOKEN:
                             clean_char = clean_char[:-1]
                             force_next_break = True
                         new_frame_list = (

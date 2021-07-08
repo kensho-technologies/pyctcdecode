@@ -10,7 +10,7 @@ from hypothesis import strategies as st
 import kenlm  # type: ignore
 import numpy as np
 
-from ..alphabet import BPE_CHAR, UNK_BPE_CHAR, Alphabet
+from ..alphabet import BPE_TOKEN, UNK_BPE_TOKEN, Alphabet
 from ..decoder import (
     BeamSearchDecoderCTC,
     _merge_beams,
@@ -481,7 +481,7 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(len(beams[0][0].split()), len(beams[0][2]))
 
         # test with fake BPE vocab, spoof space with with ▁▁
-        libri_labels_bpe = [UNK_BPE_CHAR, BPE_CHAR] + ["##" + c for c in LIBRI_LABELS[1:]]
+        libri_labels_bpe = [UNK_BPE_TOKEN, BPE_TOKEN] + ["##" + c for c in LIBRI_LABELS[1:]]
         zero_row = np.array([[-100.0] * LIBRI_LOGITS.shape[0]]).T
         libri_logits_bpe = np.hstack([zero_row, LIBRI_LOGITS])
         decoder = build_ctcdecoder(libri_labels_bpe)
