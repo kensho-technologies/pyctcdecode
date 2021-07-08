@@ -9,77 +9,66 @@ def _approx_beams(beams, precis=5):
     return [tuple(list(b[:-1]) + [round(b[-1], precis)]) for b in beams]
 
 
+KNOWN_MAPPINGS = [
+    (
+        [' ', 'a', 'b'],
+        [' ', 'a', 'b', ''],
+        False,
+    ),  # nemo
+    (
+        ['<pad>', '<s>', '</s>', '<unk>', '|', 'A', 'B'],
+        ['', '<s>', '</s>', '⁇', ' ', 'A', 'B'],
+        False,
+    ),  # huggingface
+    (
+        ['<unk>', '▁', '##a', '##b', 'a', 'b', ],
+        ['▁⁇▁', '▁', 'a', 'b', '▁a', '▁b', ''],
+        True,
+    ),  # nemo-bpe
+]
+
+TEST_MAPPINGS = [
+    (
+        [' ', 'a', 'b', ''],
+        [' ', 'a', 'b', ''],
+    ),  # make sure ctc blank doesn't get added if exists
+]
+
+BPE_TEST_MAPPINGS = [
+    (
+        ['▁⁇▁', '▁', 'a', 'b', '▁a', '▁b'],
+        ['▁⁇▁', '▁', 'a', 'b', '▁a', '▁b', ''],
+    ),  # bpe in correct form
+    (
+        ['[PAD]', '[UNK]', '[CLS]', '[SEP]', '[MASK]', '##a', '##b', 'a', 'b'],
+        ['', '▁⁇▁', '[CLS]', '[SEP]', '[MASK]', 'a', 'b', '▁a', '▁b'],
+    ),  # other special tokens
+]
+
+
 class TestModelHelpers(unittest.TestCase):
     def test_normalize_alphabet(self):
-        alphabet_list = [" ", "a", "b", ""]
-        norm_alphabet = _normalize_regular_alphabet(alphabet_list)
-        expected_alphabet = [" ", "a", "b", ""]
-        self.assertListEqual(norm_alphabet, expected_alphabet)
-
-        # missing blank char
-        alphabet_list = [" ", "a", "b"]
-        norm_alphabet = _normalize_regular_alphabet(alphabet_list)
-        expected_alphabet = [" ", "a", "b", ""]
-        self.assertListEqual(norm_alphabet, expected_alphabet)
+        for labels, expected_labels in TEST_MAPPINGS:
+            norm_labels = _normalize_regular_alphabet(labels)
+            self.assertListEqual(norm_labels, expected_labels)
 
     def test_normalize_alphabet_bpe(self):
-        # style ▁ input
-        alphabet_list = ["▁⁇▁", "▁B", "ugs", "▁", "▁bunny", ""]
-        norm_alphabet = _normalize_bpe_alphabet(alphabet_list)
-        expected_alphabet = ["▁⁇▁", "▁B", "ugs", "▁", "▁bunny", ""]
-        self.assertListEqual(norm_alphabet, expected_alphabet)
-
-        # style ▁ with missing blank char
-        alphabet_list = ["▁⁇▁", "▁B", "ugs"]
-        norm_alphabet = _normalize_bpe_alphabet(alphabet_list)
-        expected_alphabet = ["▁⁇▁", "▁B", "ugs", ""]
-        self.assertListEqual(norm_alphabet, expected_alphabet)
-
-        # other unk style
-        alphabet_list = ["<unk>", "▁B", "ugs"]
-        norm_alphabet = _normalize_bpe_alphabet(alphabet_list)
-        expected_alphabet = ["▁⁇▁", "▁B", "ugs", ""]
-        self.assertListEqual(norm_alphabet, expected_alphabet)
-
-        # style ## input
-        alphabet_list = ["B", "##ugs", ""]
-        norm_alphabet = _normalize_bpe_alphabet(alphabet_list)
-        expected_alphabet = ["▁⁇▁", "▁B", "ugs", ""]
-        self.assertListEqual(norm_alphabet, expected_alphabet)
-
-        # style ## with single ▁ char
-        alphabet_list = ["B", "##ugs", "▁", ""]
-        norm_alphabet = _normalize_bpe_alphabet(alphabet_list)
-        expected_alphabet = ["▁⁇▁", "▁B", "ugs", "▁", ""]
-        self.assertListEqual(norm_alphabet, expected_alphabet)
+        for labels, expected_labels in BPE_TEST_MAPPINGS:
+            norm_labels = _normalize_bpe_alphabet(labels)
+            self.assertListEqual(norm_labels, expected_labels)
 
     def test_alphabets(self):
-        label_list = [" ", "a", "b", ""]
-        alphabet = Alphabet.build_alphabet(label_list)
-        expected_labels = [" ", "a", "b", ""]
-        self.assertFalse(alphabet.is_bpe)
-        self.assertListEqual(alphabet.labels, expected_labels)
+        for labels, expected_labels, expected_is_bpe in KNOWN_MAPPINGS:
+            alphabet = Alphabet.build_alphabet(labels)
+            self.assertListEqual(alphabet.labels, expected_labels)
+            self.assertEqual(alphabet.is_bpe, expected_is_bpe)
 
-        label_list = ["B", "##ugs", ""]
-        alphabet_bpe = Alphabet.build_alphabet(label_list)
-        expected_labels = ["▁⁇▁", "▁B", "ugs", ""]
-        self.assertTrue(alphabet_bpe.is_bpe)
-        self.assertListEqual(alphabet_bpe.labels, expected_labels)
-
-    def test_missing_space(self):
-        """Ensure detection of missing space char in vocabulary."""
-        label_list = ["a", "b", "c", ""]
+    def test_asserts(self):
+        # duplication
+        label_list = ["a", "a", "b", "c"]
         with self.assertRaises(ValueError):
             Alphabet.build_alphabet(label_list)
-
-    def test_unknown_bpe_format(self):
-        """Ensure detection of a bad bpe format."""
-        label_list = ["a", "b", "c", " ", ""]
+        # bpe with space
+        label_list = ["▁a", " "]
         with self.assertRaises(ValueError):
-            Alphabet.build_bpe_alphabet(label_list)
-
-    def test_unk_bpe_char_assignment(self):
-        """Ensure assignment of unk_bpe_char in alphabet normalization."""
-        label_list = ["##<unk>", "##hi"]
-        labels = Alphabet.build_bpe_alphabet(label_list).labels
-        self.assertEqual(labels, ["▁⁇▁", "hi", ""])
+            Alphabet.build_alphabet(label_list)

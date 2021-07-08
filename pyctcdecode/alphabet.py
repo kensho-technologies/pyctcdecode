@@ -1,19 +1,25 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import logging
+import re
 from typing import Collection, List
 
 
-UNK_CHAR = "⁇"  # representation of unknown character in regular alphabet
-BPE_CHAR = "▁"  # character used for token boundary if BPE is used
-UNK_BPE_CHAR = "▁⁇▁"  # representation of unknown character in BPE
+BPE_TOKEN = "▁"  # representation of token boundary in BPE alphabet
+UNK_TOKEN = "⁇"  # representation of special UNK token in regular alphabet
+UNK_BPE_TOKEN = "▁⁇▁"  # representation of special UNK token in BPE alphabet
+
+SPECIAL_TOKEN_PTN = re.compile(r"^[<\[].+[>\]]$")
+BLANK_TOKEN_PTN = re.compile(r"^[<\[]pad[>\]]$", flags=re.IGNORECASE)
+UNK_TOKEN_PTN = re.compile(r"^[<\[]unk[>\]]$", flags=re.IGNORECASE)
 
 logger = logging.getLogger(__name__)
 
 
 def _check_if_bpe(labels: List[str]):
     """Check if input alphabet is BPE or not."""
-    is_bpe = any([s.startswith("##") for s in labels]) or any(
-        [s.startswith(BPE_CHAR) for s in labels]
+    is_bpe = (
+        any([s.startswith("##") for s in labels]) or
+        any([s.startswith(BPE_TOKEN) for s in labels])
     )
     if is_bpe:
         logger.info("Alphabet determined to be of BPE style.")
@@ -29,34 +35,22 @@ def _normalize_regular_alphabet(labels: List[str]) -> List[str]:
     if "|" in normalized_labels and " " not in normalized_labels:
         logger.info("Found '|' in vocabulary but not ' ', doing substitution.")
         normalized_labels[normalized_labels.index("|")] = " "
-    elif "|" in normalized_labels:
-        logger.warning(
-            "Found '|' in vocabulary. If this denotes something special, please construct the "
-            "alphabet manually."
-        )
     # substituted ctc blank char
+    for n, label in enumerate(normalized_labels):
+        if BLANK_TOKEN_PTN.match(label):
+            logger.info("Found %s in vocabulary, substituting with %s.", label, "")
+            normalized_labels[n] = ""
     if "_" in normalized_labels and "" not in normalized_labels:
         logger.info("Found '_' in vocabulary but not '', doing substitution.")
         normalized_labels[normalized_labels.index("_")] = ""
-    elif "_" in normalized_labels:
-        logger.warning(
-            "Found '_' in vocabulary. If this denotes something special, please construct the "
-            "alphabet manually."
-        )
     if "" not in normalized_labels:
         logger.info("CTC blank char '' not found, appending to end.")
         normalized_labels.append("")
     # substitute unk
     for n, label in enumerate(normalized_labels):
-        if label.lower() in ("unk", "<unk>"):
-            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_CHAR)
-            normalized_labels[n] = UNK_CHAR
-    # substitute other special characters
-    if any([label[:1] == "<" and label[-1:] == ">" for label in normalized_labels]):
-        logger.warning("Special characters found. Substituting with %s.", UNK_CHAR)
-        for n, label in enumerate(normalized_labels):
-            if label.startswith("<") and label.endswith(">"):
-                normalized_labels[n] = UNK_CHAR
+        if UNK_TOKEN_PTN.match(label):
+            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_TOKEN)
+            normalized_labels[n] = UNK_TOKEN
     # additional checks
     if any([len(c) > 1 for c in normalized_labels]):
         logger.warning(
@@ -72,37 +66,45 @@ def _convert_bpe_token_style(token: str) -> str:
     """Convert token from ## style bpe format to ▁ style."""
     if token.startswith("##"):
         return token[2:]
-    elif token in ("", BPE_CHAR, UNK_BPE_CHAR):
+    elif SPECIAL_TOKEN_PTN.match(token) or token in ("", BPE_TOKEN, UNK_BPE_TOKEN):
         return token
     else:
-        return BPE_CHAR + token
+        return BPE_TOKEN + token
 
 
 def _normalize_bpe_alphabet(labels: List[str]) -> List[str]:
     """Normalize alphabet for bpe decoder."""
     normalized_labels = labels[:]
-    # substitute unk
-    for n, label in enumerate(normalized_labels):
-        if label.lower() in ("unk", "<unk>", "⁇"):
-            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_BPE_CHAR)
-            normalized_labels[n] = UNK_BPE_CHAR
-    if UNK_BPE_CHAR not in normalized_labels:
-        logger.info("UNK not found in labels, prepending to beginning.")
-        normalized_labels = [UNK_BPE_CHAR] + normalized_labels
-    # substituted ctc blank char
-    if "" not in normalized_labels:
-        logger.info("CTC blank char '' not found, appending to end.")
-        normalized_labels.append("")
-    # substitute other special characters
-    if any(["<" in label and ">" in label for label in normalized_labels]):
-        logger.warning("Special characters found. Substituting with %s.", UNK_BPE_CHAR)
-        for n, label in enumerate(normalized_labels):
-            if "<" in label and ">" in label:
-                normalized_labels[n] = UNK_BPE_CHAR
     # if BPE is of style '##' then convert it
     if any([s.startswith("##") for s in labels]):
         normalized_labels = [_convert_bpe_token_style(c) for c in normalized_labels]
+    # substituted ctc blank char
+    for n, label in enumerate(normalized_labels):
+        if BLANK_TOKEN_PTN.match(label):
+            logger.info("Found %s in vocabulary, substituting with %s.", label, "")
+            normalized_labels[n] = ""
+    if "" not in normalized_labels:
+        logger.info("CTC blank char '' not found, appending to end.")
+        normalized_labels.append("")
+    # substitute unk
+    for n, label in enumerate(normalized_labels):
+        if UNK_TOKEN_PTN.match(label):
+            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_TOKEN)
+            normalized_labels[n] = UNK_TOKEN
+    # additional checks
+    if UNK_TOKEN not in normalized_labels:
+        logger.warning("UNK token %s not found, is this a mistake?", UNK_TOKEN)
     return normalized_labels
+
+
+def _verify_alphabet(labels: List[str], is_bpe: bool) -> None:
+    """Verify basic alphabet labels."""
+    # check if duplicates exist
+    if len(labels) != len(set(labels)):
+        raise ValueError("Alphabet contains duplicate entries, this is not allowed.")
+    # check if space character is absent in bpe alphabet
+    if is_bpe and any([" " in s for s in labels]):
+        raise ValueError("Space token ' ' found in vocabulary even though it looks like BPE.")
 
 
 class Alphabet:
@@ -125,6 +127,7 @@ class Alphabet:
     def build_alphabet(cls, labels: List[str]) -> "Alphabet":
         """Make an alphabet from labels in standardized format for decoder."""
         is_bpe = _check_if_bpe(labels)
+        _verify_alphabet(labels, is_bpe)
         if is_bpe:
             normalized_labels = _normalize_bpe_alphabet(labels)
         else:
@@ -135,6 +138,6 @@ class Alphabet:
 def verify_alphabet_coverage(alphabet: Alphabet, unigrams: Collection[str]) -> None:
     """Verify if alphabet covers a given unigrams."""
     label_chars = set(alphabet.labels)
-    unigram_sample_chars = set("".join(unigrams[:100]))
+    unigram_sample_chars = set("".join(unigrams))
     if len(unigram_sample_chars - label_chars) / len(unigram_sample_chars) > 0.2:
         logger.warning("Unigrams and labels don't seem to agree.")
