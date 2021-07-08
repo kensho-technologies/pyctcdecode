@@ -4,7 +4,7 @@ from __future__ import division
 import abc
 import logging
 import re
-from typing import Collection, Iterable, List, Optional, Pattern, Set, Tuple
+from typing import Collection, Iterable, List, Optional, Pattern, Set, Tuple, cast
 
 import numpy as np
 from pygtrie import CharTrie  # type: ignore
@@ -96,9 +96,9 @@ class HotwordScorer:
         self._char_trie = char_trie
         self._weight = weight
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         """Contains."""
-        return self._char_trie.has_node(item) > 0
+        return cast(bool, self._char_trie.has_node(item) > 0)
 
     def score(self, text: str) -> float:
         """Get total hotword score for input text."""
@@ -217,7 +217,7 @@ class LanguageModel(AbstractLanguageModel):
     @property
     def order(self) -> int:
         """Get the order of the n-gram language model."""
-        return self._kenlm_model.order
+        return cast(int, (self._kenlm_model.order))
 
     def get_start_state(self) -> kenlm.State:
         """Get initial lm state."""
@@ -232,7 +232,7 @@ class LanguageModel(AbstractLanguageModel):
         """Calculate final lm score."""
         if self.score_boundary:
             end_state = _get_empty_lm_state()
-            score = self._kenlm_model.BaseScore(start_state, "</s>", end_state)
+            score: float = self._kenlm_model.BaseScore(start_state, "</s>", end_state)
         else:
             score = 0.0
         return score

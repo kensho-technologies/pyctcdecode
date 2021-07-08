@@ -31,6 +31,7 @@ run_fast_linters=0  # copyright line check, isort, black, flake8, pydocstyle
 run_pylint=0
 run_mypy=0
 run_bandit=0
+fix=0
 for i in "$@"; do
     case $i in
         --diff )
@@ -73,6 +74,11 @@ for i in "$@"; do
             run_bandit=1
             shift;;
 
+        --fix )
+            fix=1
+            echo "running in FIX mode"
+            shift;;
+
         *)
             echo "Unknown option: $i";
             exit 1;;
@@ -112,13 +118,23 @@ if [ "$run_fast_linters" -eq 1 ]; then
     echo -e "\n*** End of copyright line check run; exit: $copyright_line_check_exit_code ***\n"
 
     echo -e '*** Running isort... ***\n'
-    isort --check-only --settings-path=setup.cfg --diff --recursive $lintable_locations
-    isort_exit_code=$?
+    if [ "$fix" -eq 1 ]; then
+        isort --settings-path=setup.cfg $lintable_locations
+        isort_exit_code=$?
+    else
+        isort --check-only --diff --settings-path=setup.cfg  $lintable_locations
+        isort_exit_code=$?
+    fi
     echo -e "\n*** End of isort run; exit: $isort_exit_code ***\n"
 
     echo -e '*** Running black... ***\n'
-    black --check --diff .
-    black_exit_code=$?
+    if [ "$fix" -eq 1 ]; then
+        black .
+        black_exit_code=$?
+    else
+        black --check --diff .
+        black_exit_code=$?
+    fi
     echo -e "\n*** End of black run; exit: $black_exit_code ***\n"
 
     echo -e '*** Running flake8... ***\n'

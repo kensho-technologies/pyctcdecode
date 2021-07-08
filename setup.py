@@ -10,7 +10,7 @@ from setuptools import find_packages, setup  # type: ignore
 logger = logging.getLogger(__name__)
 
 
-def read_file(filename):
+def read_file(filename: str) -> str:
     """Read package file as text to get name and version."""
     # intentionally *not* adding an encoding option to open, see here:
     # https://github.com/pypa/virtualenv/issues/201#issuecomment-3145690
@@ -19,7 +19,7 @@ def read_file(filename):
         return f.read()
 
 
-def find_version():
+def find_version() -> str:
     """Only define version in one place."""
     version_file = read_file("__init__.py")
     version_match = re.search(r"^__version__ = [\"\']([^\"\']*)[\"\']", version_file, re.M)
@@ -37,14 +37,14 @@ def find_name() -> str:
     raise RuntimeError("Unable to find name string.")
 
 
-def find_long_description():
+def find_long_description() -> str:
     """Return the content of the README.md file."""
     return read_file("../README.md")
 
 
 # upper limits are untested, not necessarily conflicting
 # lower limits mostly to be python 3 compatible
-REQUIRED_PACKAGES = ["numpy>=0.16.0,<2.0.0", "pygtrie>=2.1,<3.0"]
+REQUIRED_PACKAGES = ["numpy>=1.20.0,<2.0.0", "pygtrie>=2.1,<3.0", "hypothesis>=6.14,<7"]
 
 EXTRAS_REQUIRE = {
     "dev": [
@@ -52,6 +52,7 @@ EXTRAS_REQUIRE = {
         "black",
         "codecov",
         "flake8",
+        "isort>=5.0.0,<6",
         "jupyter",
         "mypy",
         "nbconvert",
@@ -77,10 +78,7 @@ setup(
     install_requires=REQUIRED_PACKAGES,
     extras_require=EXTRAS_REQUIRE,
     package_data={
-        "": [
-            "tests/sample_data/bugs_bunny_kenlm.arpa",
-            "tests/sample_data/libri_logits.json",
-        ]
+        "": ["tests/sample_data/bugs_bunny_kenlm.arpa", "tests/sample_data/libri_logits.json"]
     },
     dependency_links=[],
 )
