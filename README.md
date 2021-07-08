@@ -33,18 +33,18 @@ kenlm_model = kenlm.Model("/my/dir/kenlm_model.binary")
 
 # specify alphabet labels as they appear in logits
 labels = [
-    " ", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", 
+    " ", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l",
     "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
 ]
 
 # prepare decoder and decode logits via shallow fusion
 decoder = build_ctcdecoder(
     labels,
-    kenlm_model, 
-    alpha=0.5,  # tuned on a val set 
-    beta=1.0,  # tuned on a val set 
+    kenlm_model,
+    alpha=0.5,  # tuned on a val set
+    beta=1.0,  # tuned on a val set
 )
-text = decoder.decode(logits)  
+text = decoder.decode(logits)
 ```
 
 If the vocabulary is BPE based, adjust the labels and set the `is_bpe` flag (merging of tokens for the LM is handled automatically):
@@ -54,7 +54,7 @@ labels = ["<unk>", "▁bug", "s", "▁bunny"]
 
 decoder = build_ctcdecoder(
     labels,
-    kenlm_model, 
+    kenlm_model,
     is_bpe=True,
 )
 text = decoder.decode(logits)
@@ -65,14 +65,14 @@ Improve domain specificity by adding important contextual words ("hotwords") dur
 ``` python
 hotwords = ["looney tunes", "anthropomorphic"]
 text = decoder.decode(
-    logits, 
+    logits,
     hotwords=hotwords,
-    hotwords_weight=10.0,
+    hotword_weight=10.0,
 )
 ```
 
 Batch support via multiprocessing:
-    
+
 ``` python
 from multiprocessing import Pool
 
@@ -107,7 +107,7 @@ In scientific computing, there’s often a tension between a language’s perfor
 The use of Python allows us to easily implement features like hotword support with only a few lines of code.
 
 <p align="center"><img width="800px" src="docs/images/hotwords.png"></p>
-    
+
 `pyctcdecode` can return either a single transcript, or the full results of the beam search algorithm. The latter provides the language model state to enable real-time inference as well as word-based logit indices (frames) to enable word-based timing and confidence score calculations natively through the decoding process.
 
 <p align="center"><img width="450px" src="docs/images/beam_output.png"></p>
