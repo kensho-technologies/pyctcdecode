@@ -6,9 +6,9 @@ import re
 from typing import Collection, List
 
 
-BPE_TOKEN = "▁"  # representation of token boundary in BPE alphabet # nosec
-UNK_TOKEN = "⁇"  # representation of special UNK token in regular alphabet # nosec
-UNK_BPE_TOKEN = "▁⁇▁"  # representation of special UNK token in BPE alphabet # nosec
+BPE_TOKEN = "▁"  # nosec # representation of token boundary in BPE alphabet
+UNK_TOKEN = "⁇"  # nosec # representation of special UNK token in regular alphabet
+UNK_BPE_TOKEN = "▁⁇▁"  # nosec # representation of special UNK token in BPE alphabet
 
 SPECIAL_TOKEN_PTN = re.compile(r"^[<\[].+[>\]]$")
 BLANK_TOKEN_PTN = re.compile(r"^[<\[]pad[>\]]$", flags=re.IGNORECASE)
