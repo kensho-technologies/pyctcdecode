@@ -80,7 +80,10 @@ def _sum_log_scores(s1: float, s2: float) -> float:
     return log_sum
 
 
-def _log_softmax(x: np.ndarray, axis: Optional[int] = None) -> np.ndarray:  #type: ignore [type-arg]
+def _log_softmax(
+    x: np.ndarray,  # type: ignore [type-arg]
+    axis: Optional[int] = None,
+) -> np.ndarray:  # type: ignore [type-arg]
     """Logarithm of softmax function, following implementation of scipy.special."""
     x_max = np.amax(x, axis=axis, keepdims=True)
     if x_max.ndim > 0:
@@ -92,7 +95,7 @@ def _log_softmax(x: np.ndarray, axis: Optional[int] = None) -> np.ndarray:  #typ
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
         s = np.sum(exp_tmp, axis=cast(SupportsIndex, axis), keepdims=True)
-        out: np.ndarray = np.log(s)  #type: ignore [type-arg]
+        out: np.ndarray = np.log(s)  # type: ignore [type-arg]
     out = tmp - out
     return out
 
@@ -304,7 +307,7 @@ class BeamSearchDecoderCTC:
 
     def _decode_logits(
         self,
-        logits: np.ndarray,  #type: ignore [type-arg]
+        logits: np.ndarray,  # type: ignore [type-arg]
         beam_width: int,
         beam_prune_logp: float,
         token_min_logp: float,
@@ -472,7 +475,7 @@ class BeamSearchDecoderCTC:
 
     def decode_beams(
         self,
-        logits: np.ndarray,  #type: ignore [type-arg]
+        logits: np.ndarray,  # type: ignore [type-arg]
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -524,7 +527,7 @@ class BeamSearchDecoderCTC:
 
     def _decode_beams_mp_safe(
         self,
-        logits: np.ndarray,  #type: ignore [type-arg]
+        logits: np.ndarray,  # type: ignore [type-arg]
         beam_width: int,
         beam_prune_logp: float,
         token_min_logp: float,
@@ -552,7 +555,7 @@ class BeamSearchDecoderCTC:
     def decode_beams_batch(
         self,
         pool: Any,
-        logits_list: List[np.ndarray],  #type: ignore [type-arg]
+        logits_list: List[np.ndarray],  # type: ignore [type-arg]
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -588,7 +591,7 @@ class BeamSearchDecoderCTC:
 
     def decode(
         self,
-        logits: np.ndarray,  #type: ignore [type-arg]
+        logits: np.ndarray,  # type: ignore [type-arg]
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -625,7 +628,7 @@ class BeamSearchDecoderCTC:
     def decode_batch(
         self,
         pool: Any,
-        logits_list: List[np.ndarray],  #type: ignore [type-arg]
+        logits_list: List[np.ndarray],  # type: ignore [type-arg]
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
