@@ -6,7 +6,18 @@ import heapq
 import logging
 import math
 import os
-from typing import Any, Collection, Dict, Iterable, List, Optional, SupportsIndex, Tuple, Union, cast
+from typing import (
+    Any,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    SupportsIndex,
+    Tuple,
+    Union,
+    cast
+)
 
 import numpy as np
 from numpy.typing import NDArray

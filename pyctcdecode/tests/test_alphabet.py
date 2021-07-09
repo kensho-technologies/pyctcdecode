@@ -11,37 +11,37 @@ def _approx_beams(beams, precis=5):
 
 KNOWN_MAPPINGS = [
     (
-        [' ', 'a', 'b'],
-        [' ', 'a', 'b', ''],
+        [" ", "a", "b"],
+        [" ", "a", "b", ""],
         False,
     ),  # nemo
     (
-        ['<pad>', '<s>', '</s>', '<unk>', '|', 'A', 'B'],
-        ['', '<s>', '</s>', '⁇', ' ', 'A', 'B'],
+        ["<pad>", "<s>", "</s>", "<unk>", "|", "A", "B"],
+        ["", "<s>", "</s>", "⁇", " ", "A", "B"],
         False,
     ),  # huggingface
     (
-        ['<unk>', '▁', '##a', '##b', 'a', 'b', ],
-        ['▁⁇▁', '▁', 'a', 'b', '▁a', '▁b', ''],
+        ["<unk>", "▁", "##a", "##b", "a", "b", ],
+        ["▁⁇▁", "▁", "a", "b", "▁a", "▁b", ""],
         True,
     ),  # nemo-bpe
 ]
 
 TEST_MAPPINGS = [
     (
-        [' ', 'a', 'b', ''],
-        [' ', 'a', 'b', ''],
-    ),  # make sure ctc blank doesn't get added if exists
+        [" ", "a", "b", ""],
+        [" ", "a", "b", ""],
+    ),  # make sure ctc blank doesn"t get added if exists
 ]
 
 BPE_TEST_MAPPINGS = [
     (
-        ['▁⁇▁', '▁', 'a', 'b', '▁a', '▁b'],
-        ['▁⁇▁', '▁', 'a', 'b', '▁a', '▁b', ''],
+        ["▁⁇▁", "▁", "a", "b", "▁a", "▁b"],
+        ["▁⁇▁", "▁", "a", "b", "▁a", "▁b", ""],
     ),  # bpe in correct form
     (
-        ['[PAD]', '[UNK]', '[CLS]', '[SEP]', '[MASK]', '##a', '##b', 'a', 'b'],
-        ['', '▁⁇▁', '[CLS]', '[SEP]', '[MASK]', 'a', 'b', '▁a', '▁b'],
+        ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]", "##a", "##b", "a", "b"],
+        ["", "▁⁇▁", "[CLS]", "[SEP]", "[MASK]", "a", "b", "▁a", "▁b"],
     ),  # other special tokens
 ]
 

@@ -17,9 +17,8 @@ logger = logging.getLogger(__name__)
 
 def _check_if_bpe(labels: List[str]):
     """Check if input alphabet is BPE or not."""
-    is_bpe = (
-        any([s.startswith("##") for s in labels]) or
-        any([s.startswith(BPE_TOKEN) for s in labels])
+    is_bpe = any([s.startswith("##") for s in labels]) or any(
+        [s.startswith(BPE_TOKEN) for s in labels]
     )
     if is_bpe:
         logger.info("Alphabet determined to be of BPE style.")
