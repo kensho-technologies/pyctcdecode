@@ -89,11 +89,11 @@ def _normalize_bpe_alphabet(labels: List[str]) -> List[str]:
     # substitute unk
     for n, label in enumerate(normalized_labels):
         if UNK_TOKEN_PTN.match(label):
-            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_TOKEN)
-            normalized_labels[n] = UNK_TOKEN
+            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_BPE_TOKEN)
+            normalized_labels[n] = UNK_BPE_TOKEN
     # additional checks
-    if UNK_TOKEN not in normalized_labels:
-        logger.warning("UNK token %s not found, is this a mistake?", UNK_TOKEN)
+    if UNK_BPE_TOKEN not in normalized_labels:
+        logger.warning("UNK token %s not found, is this a mistake?", UNK_BPE_TOKEN)
     return normalized_labels
 
 
