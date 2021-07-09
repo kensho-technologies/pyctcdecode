@@ -157,8 +157,8 @@ LIBRI_LABELS = [
 ]
 
 # basic 2-gram kenlm model trained with 'bugs bunny'
-KENLM_BINARY_PATH = os.path.join(CUR_PATH, "sample_data", "bugs_bunny_kenlm.arpa")
-TEST_KENLM_MODEL = kenlm.Model(KENLM_BINARY_PATH)
+KENLM_MODEL_PATH = os.path.join(CUR_PATH, "sample_data", "bugs_bunny_kenlm.arpa")
+TEST_KENLM_MODEL = kenlm.Model(KENLM_MODEL_PATH)
 
 SAMPLE_LABELS = [" ", "b", "g", "n", "s", "u", "y", ""]
 SAMPLE_VOCAB = {c: n for n, c in enumerate(SAMPLE_LABELS)}
@@ -420,7 +420,7 @@ class TestDecoder(unittest.TestCase):
 
         # if we add the language model, that should push bugs bunny to the top, far enough to
         # remove all other beams from the output
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
         beams = decoder.decode_beams(TEST_LOGITS)
         self.assertEqual(len(beams), 1)
         top_beam = beams[0]
@@ -520,8 +520,7 @@ class TestDecoder(unittest.TestCase):
         lm_score_boundary=st.one_of(st.none(), st.booleans()),
     )
     def test_fuzz_reset_params(self, alpha, beta, unk_score_offset, lm_score_boundary):
-        language_model = LanguageModel(TEST_KENLM_MODEL, alpha=0.0)
-        decoder = build_ctcdecoder(SAMPLE_LABELS, language_model)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, alpha=0.0)
         decoder.reset_params(
             alpha=alpha,
             beta=beta,
