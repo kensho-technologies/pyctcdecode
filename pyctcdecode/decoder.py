@@ -16,7 +16,7 @@ from typing import (
     SupportsIndex,
     Tuple,
     Union,
-    cast
+    cast,
 )
 
 import numpy as np

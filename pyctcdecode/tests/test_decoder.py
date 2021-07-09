@@ -250,19 +250,19 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(len(BeamSearchDecoderCTC.model_container), 0)
 
     def test_build_ctcdecoder(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")
 
     def test_decode_batch(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL, TEST_UNIGRAMS)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
         with multiprocessing.Pool() as pool:
             text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = ["bugs bunny"] * 5
         self.assertListEqual(expected_text_list, text_list)
 
     def test_decode_beams_batch(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL, TEST_UNIGRAMS)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
         with multiprocessing.Pool() as pool:
             text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
@@ -327,7 +327,7 @@ class TestDecoder(unittest.TestCase):
         self.assertListEqual(_approx_lm_beams(beams_1), _approx_lm_beams(beams_2))
 
     def test_pruning(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")
         text = _greedy_decode(TEST_LOGITS, decoder._alphabet)  # pylint: disable=W0212
@@ -364,7 +364,7 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(text, "bugs bugs")
 
         # now let's add a LM
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL, TEST_UNIGRAMS)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
 
         # LM correctly picks up the higher bigram probability for 'bugs bunny' over 'bugs bugs'
         text = decoder.decode(bunny_bunny_probs)
@@ -380,7 +380,7 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(text, "bugs bunny")
 
     def test_hotwords(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
 
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")

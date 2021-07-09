@@ -1,4 +1,6 @@
 # Copyright 2021-present Kensho Technologies, LLC.
+from __future__ import division
+
 import logging
 import re
 from typing import Collection, List
@@ -15,7 +17,7 @@ UNK_TOKEN_PTN = re.compile(r"^[<\[]unk[>\]]$", flags=re.IGNORECASE)
 logger = logging.getLogger(__name__)
 
 
-def _check_if_bpe(labels: List[str]):
+def _check_if_bpe(labels: List[str]) -> bool:
     """Check if input alphabet is BPE or not."""
     is_bpe = any([s.startswith("##") for s in labels]) or any(
         [s.startswith(BPE_TOKEN) for s in labels]

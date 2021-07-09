@@ -21,7 +21,7 @@ KNOWN_MAPPINGS = [
         False,
     ),  # huggingface
     (
-        ["<unk>", "▁", "##a", "##b", "a", "b", ],
+        ["<unk>", "▁", "##a", "##b", "a", "b"],
         ["▁⁇▁", "▁", "a", "b", "▁a", "▁b", ""],
         True,
     ),  # nemo-bpe
