@@ -6,7 +6,7 @@ import heapq
 import logging
 import math
 import os
-from typing import Any, Dict, Iterable, List, Optional, SupportsIndex, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -94,7 +94,7 @@ def _log_softmax(
     exp_tmp = np.exp(tmp)
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
-        s = np.sum(exp_tmp, axis=cast(SupportsIndex, axis), keepdims=True)
+        s = np.sum(exp_tmp, axis=axis, keepdims=True)
         out: np.ndarray = np.log(s)  # type: ignore [type-arg]
     out = tmp - out
     return out
