@@ -696,7 +696,7 @@ def build_ctcdecoder(
     Args:
         labels: class containing the labels for input logit matrices
         kenlm_model_path: path to kenlm n-gram language model
-        unigrams: list of known word unigrams, this will greatly improve accuracy
+        unigrams: list of known word unigrams
         alpha: weight for language model during shallow fusion
         beta: weight for length score adjustment of during scoring
         unk_score_offset: amount of log score offset for unknown tokens
@@ -706,8 +706,16 @@ def build_ctcdecoder(
         instance of BeamSearchDecoderCTC
     """
     kenlm_model = None if kenlm_model_path is None else kenlm.Model(kenlm_model_path)
-    if unigrams is None and kenlm_model_path is not None and kenlm_model_path.endswith(".arpa"):
-        unigrams = load_unigram_set_from_arpa(kenlm_model_path)
+    if kenlm_model_path.endswith(".arpa"):
+        logger.info("Using arpa instead of binary LM file, decoder instantiation might be slow.")
+    if unigrams is None and kenlm_model_path is not None:
+        if kenlm_model_path.endswith(".arpa"):
+            unigrams = load_unigram_set_from_arpa(kenlm_model_path)
+        else:
+            logger.warning(
+                "Unigrams not provided and cannot be automatically determined from LM file (only "
+                "arpa format). Decoding accuracy might be reduced."
+            )
     alphabet = Alphabet.build_alphabet(labels)
     if unigrams is not None:
         verify_alphabet_coverage(alphabet, unigrams)

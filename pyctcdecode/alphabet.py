@@ -58,7 +58,7 @@ def _normalize_regular_alphabet(labels: List[str]) -> List[str]:
             logger.info(
                 "Found %s in vocabulary, interpreting as unknown token, substituting with %s.",
                 label,
-                UNK_TOKEN
+                UNK_TOKEN,
             )
             normalized_labels[n] = UNK_TOKEN
     # additional checks
