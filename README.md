@@ -47,7 +47,8 @@ decoder = build_ctcdecoder(
 text = decoder.decode(logits)
 ```
 
-If the vocabulary is BPE-based, adjust the labels and set the `is_bpe` flag (merging of tokens for the LM is handled automatically):
+If the vocabulary is BPE-based, adjust the labels and set the `is_bpe`
+flag (merging of tokens for the LM is handled automatically):
 
 ``` python
 labels = ["<unk>", "▁bug", "s", "▁bunny"]
@@ -70,6 +71,13 @@ text = decoder.decode(
     hotword_weight=10.0,
 )
 ```
+
+_(Note: the pyctcdecode decoder contains several free hyperparameters
+that can strongly influence error rate and wall time.  Default values
+for these parameters were (merely) chosen in order to yield good
+performance for one particular use case.  For best results, especially
+when working with languages other than English, users are encouraged
+to perform a hyperparameter optimization study on their own data.)_
 
 Batch support via multiprocessing:
 
