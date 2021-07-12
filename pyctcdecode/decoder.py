@@ -705,7 +705,7 @@ def build_ctcdecoder(
         instance of BeamSearchDecoderCTC
     """
     kenlm_model = None if kenlm_model_path is None else kenlm.Model(kenlm_model_path)
-    if unigrams is None and kenlm_model_path is not None and kenlm_model_path[-5:] == ".arpa":
+    if unigrams is None and kenlm_model_path is not None and kenlm_model_path.endswith(".arpa"):
         unigrams = load_unigram_set_from_arpa(kenlm_model_path)
     alphabet = Alphabet.build_alphabet(labels)
     if unigrams is not None:

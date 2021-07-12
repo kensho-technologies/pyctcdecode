@@ -47,6 +47,8 @@ def load_unigram_set_from_arpa(arpa_path: str) -> Set[str]:
                 parts = line.split("\t")
                 if len(parts) == 3:
                     unigrams.add(parts[1])
+    if len(unigrams) == 0:
+        raise ValueError("No unigrams found in arpa file. Something is wrong with the file.")
     return unigrams
 
 

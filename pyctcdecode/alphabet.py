@@ -10,6 +10,7 @@ BPE_TOKEN = "▁"  # nosec # representation of token boundary in BPE alphabet
 UNK_TOKEN = "⁇"  # nosec # representation of special UNK token in regular alphabet
 UNK_BPE_TOKEN = "▁⁇▁"  # nosec # representation of special UNK token in BPE alphabet
 
+# special tokens are usually encode with things like `[]` or `<>`
 SPECIAL_TOKEN_PTN = re.compile(r"^[<\[].+[>\]]$")
 BLANK_TOKEN_PTN = re.compile(r"^[<\[]pad[>\]]$", flags=re.IGNORECASE)
 UNK_TOKEN_PTN = re.compile(r"^[<\[]unk[>\]]$", flags=re.IGNORECASE)
@@ -39,7 +40,11 @@ def _normalize_regular_alphabet(labels: List[str]) -> List[str]:
     # substituted ctc blank char
     for n, label in enumerate(normalized_labels):
         if BLANK_TOKEN_PTN.match(label):
-            logger.info("Found %s in vocabulary, substituting with %s.", label, "")
+            logger.info(
+                "Found %s in vocabulary, interpreted as a CTC blank token, substituting with %s.",
+                label,
+                "",
+            )
             normalized_labels[n] = ""
     if "_" in normalized_labels and "" not in normalized_labels:
         logger.info("Found '_' in vocabulary but not '', doing substitution.")
@@ -50,13 +55,17 @@ def _normalize_regular_alphabet(labels: List[str]) -> List[str]:
     # substitute unk
     for n, label in enumerate(normalized_labels):
         if UNK_TOKEN_PTN.match(label):
-            logger.info("Found %s in vocabulary, substituting with %s.", label, UNK_TOKEN)
+            logger.info(
+                "Found %s in vocabulary, interpreting as unknown token, substituting with %s.",
+                label,
+                UNK_TOKEN
+            )
             normalized_labels[n] = UNK_TOKEN
     # additional checks
     if any([len(c) > 1 for c in normalized_labels]):
         logger.warning(
-            "Found entries of length > 1 in alphabet. This is unusual unless style is BPE. "
-            "Is this correct?"
+            "Found entries of length > 1 in alphabet. This is unusual unless style is BPE, but the "
+            "alphabet was not recognized as BPE type. Is this correct?"
         )
     if " " not in normalized_labels:
         logger.warning("Space token ' ' missing from vocabulary.")
