@@ -6,18 +6,7 @@ import heapq
 import logging
 import math
 import os
-from typing import (
-    Any,
-    Collection,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    SupportsIndex,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
