@@ -706,7 +706,7 @@ def build_ctcdecoder(
         instance of BeamSearchDecoderCTC
     """
     kenlm_model = None if kenlm_model_path is None else kenlm.Model(kenlm_model_path)
-    if kenlm_model_path.endswith(".arpa"):
+    if kenlm_model_path is not None and kenlm_model_path.endswith(".arpa"):
         logger.info("Using arpa instead of binary LM file, decoder instantiation might be slow.")
     if unigrams is None and kenlm_model_path is not None:
         if kenlm_model_path.endswith(".arpa"):
