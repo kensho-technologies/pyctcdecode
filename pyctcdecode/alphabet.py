@@ -40,6 +40,8 @@ def _convert_bpe_format(token: str) -> str:
         return token
     elif token == "":  # nosec
         return token
+    elif token in ("<unk>", UNK_BPE_CHAR):
+        return token
     else:
         return BPE_CHAR + token
 
