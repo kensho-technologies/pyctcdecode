@@ -29,7 +29,7 @@ import kenlm
 from pyctcdecode import build_ctcdecoder
 
 # load trained kenlm model
-kenlm_model = kenlm.Model("/my/dir/kenlm_model.binary")
+kenlm_model = kenlm.Model("/my/dir/kenlm_model.arpa")
 
 # specify alphabet labels as they appear in logits
 labels = [
@@ -47,7 +47,9 @@ decoder = build_ctcdecoder(
 text = decoder.decode(logits)
 ```
 
-If the vocabulary is BPE-based, adjust the labels and set the `is_bpe` flag (merging of tokens for the LM is handled automatically):
+If the vocabulary is BPE-based, `pyctcdecode` will automatically recognize that and handled token merging automatically.
+
+_(Note: the LM itself has no notion of this and is still word-based.)_
 
 ``` python
 labels = ["<unk>", "▁bug", "s", "▁bunny"]
@@ -55,7 +57,6 @@ labels = ["<unk>", "▁bug", "s", "▁bunny"]
 decoder = build_ctcdecoder(
     labels,
     kenlm_model,
-    is_bpe=True,
 )
 text = decoder.decode(logits)
 ```
@@ -71,7 +72,7 @@ text = decoder.decode(
 )
 ```
 
-_(Note: the pyctcdecode decoder contains several free hyperparameters
+_(Note: `pyctcdecode` contains several free hyperparameters
 that can strongly influence error rate and wall time.  Default values
 for these parameters were (merely) chosen in order to yield good
 performance for one particular use case.  For best results, especially
@@ -95,9 +96,9 @@ import nemo.collections.asr as nemo_asr
 asr_model = nemo_asr.models.EncDecCTCModelBPE.from_pretrained(
   model_name='stt_en_conformer_ctc_small'
 )
-logits = asr_model.transcribe(["my_file.wav"], logprobs=True)[0].cpu().detach().numpy()
+logits = asr_model.transcribe(["my_file.wav"], logprobs=True)[0]
 
-decoder = build_ctcdecoder(asr_model.decoder.vocabulary, is_bpe=True)
+decoder = build_ctcdecoder(asr_model.decoder.vocabulary)
 decoder.decode(logits)
 ```
 
