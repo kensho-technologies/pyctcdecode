@@ -78,6 +78,8 @@ def _convert_bpe_token_style(token: str) -> str:
         return token[2:]
     elif SPECIAL_TOKEN_PTN.match(token) or token in ("", BPE_TOKEN, UNK_BPE_TOKEN):
         return token
+    elif token in ("<unk>", UNK_BPE_CHAR):
+        return token
     else:
         return BPE_TOKEN + token
 

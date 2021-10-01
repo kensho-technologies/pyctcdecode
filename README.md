@@ -71,6 +71,13 @@ text = decoder.decode(
 )
 ```
 
+_(Note: the pyctcdecode decoder contains several free hyperparameters
+that can strongly influence error rate and wall time.  Default values
+for these parameters were (merely) chosen in order to yield good
+performance for one particular use case.  For best results, especially
+when working with languages other than English, users are encouraged
+to perform a hyperparameter optimization study on their own data.)_
+
 Batch support via multiprocessing:
 
 ``` python
