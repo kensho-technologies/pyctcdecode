@@ -10,7 +10,7 @@ from hypothesis import strategies as st
 import kenlm  # type: ignore
 import numpy as np
 
-from ..alphabet import BPE_CHAR, UNK_BPE_CHAR, Alphabet
+from ..alphabet import BPE_TOKEN, UNK_BPE_TOKEN, Alphabet
 from ..decoder import (
     BeamSearchDecoderCTC,
     _merge_beams,
@@ -157,8 +157,8 @@ LIBRI_LABELS = [
 ]
 
 # basic 2-gram kenlm model trained with 'bugs bunny'
-KENLM_BINARY_PATH = os.path.join(CUR_PATH, "sample_data", "bugs_bunny_kenlm.arpa")
-TEST_KENLM_MODEL = kenlm.Model(KENLM_BINARY_PATH)
+KENLM_MODEL_PATH = os.path.join(CUR_PATH, "sample_data", "bugs_bunny_kenlm.arpa")
+TEST_KENLM_MODEL = kenlm.Model(KENLM_MODEL_PATH)
 
 SAMPLE_LABELS = [" ", "b", "g", "n", "s", "u", "y", ""]
 SAMPLE_VOCAB = {c: n for n, c in enumerate(SAMPLE_LABELS)}
@@ -250,19 +250,19 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(len(BeamSearchDecoderCTC.model_container), 0)
 
     def test_build_ctcdecoder(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")
 
     def test_decode_batch(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL, TEST_UNIGRAMS)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
         with multiprocessing.Pool() as pool:
             text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = ["bugs bunny"] * 5
         self.assertListEqual(expected_text_list, text_list)
 
     def test_decode_beams_batch(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL, TEST_UNIGRAMS)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
         with multiprocessing.Pool() as pool:
             text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
@@ -327,7 +327,7 @@ class TestDecoder(unittest.TestCase):
         self.assertListEqual(_approx_lm_beams(beams_1), _approx_lm_beams(beams_2))
 
     def test_pruning(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")
         text = _greedy_decode(TEST_LOGITS, decoder._alphabet)  # pylint: disable=W0212
@@ -364,7 +364,7 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(text, "bugs bugs")
 
         # now let's add a LM
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL, TEST_UNIGRAMS)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
 
         # LM correctly picks up the higher bigram probability for 'bugs bunny' over 'bugs bugs'
         text = decoder.decode(bunny_bunny_probs)
@@ -380,7 +380,7 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(text, "bugs bunny")
 
     def test_hotwords(self):
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
 
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")
@@ -420,7 +420,7 @@ class TestDecoder(unittest.TestCase):
 
         # if we add the language model, that should push bugs bunny to the top, far enough to
         # remove all other beams from the output
-        decoder = build_ctcdecoder(SAMPLE_LABELS, TEST_KENLM_MODEL)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
         beams = decoder.decode_beams(TEST_LOGITS)
         self.assertEqual(len(beams), 1)
         top_beam = beams[0]
@@ -481,10 +481,10 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(len(beams[0][0].split()), len(beams[0][2]))
 
         # test with fake BPE vocab, spoof space with with ▁▁
-        libri_labels_bpe = [UNK_BPE_CHAR, BPE_CHAR * 2] + LIBRI_LABELS[1:]
+        libri_labels_bpe = [UNK_BPE_TOKEN, BPE_TOKEN] + ["##" + c for c in LIBRI_LABELS[1:]]
         zero_row = np.array([[-100.0] * LIBRI_LOGITS.shape[0]]).T
         libri_logits_bpe = np.hstack([zero_row, LIBRI_LOGITS])
-        decoder = build_ctcdecoder(libri_labels_bpe, is_bpe=True)
+        decoder = build_ctcdecoder(libri_labels_bpe)
         text = decoder.decode(libri_logits_bpe)
         expected_text = (
             "i have a good deal of will you remember and what i have set my mind upon no doubt "
@@ -520,8 +520,7 @@ class TestDecoder(unittest.TestCase):
         lm_score_boundary=st.one_of(st.none(), st.booleans()),
     )
     def test_fuzz_reset_params(self, alpha, beta, unk_score_offset, lm_score_boundary):
-        language_model = LanguageModel(TEST_KENLM_MODEL, alpha=0.0)
-        decoder = build_ctcdecoder(SAMPLE_LABELS, language_model)
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, alpha=0.0)
         decoder.reset_params(
             alpha=alpha,
             beta=beta,

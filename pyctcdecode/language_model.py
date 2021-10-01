@@ -4,7 +4,7 @@ from __future__ import division
 import abc
 import logging
 import re
-from typing import Iterable, List, Optional, Pattern, Tuple, cast
+from typing import Collection, Iterable, List, Optional, Pattern, Set, Tuple, cast
 
 import numpy as np
 from pygtrie import CharTrie  # type: ignore
@@ -30,6 +30,45 @@ except ImportError:
         "kenlm python bindings are not installed. Most likely you want to install it using: "
         "pip install https://github.com/kpu/kenlm/archive/master.zip"
     )
+
+
+def load_unigram_set_from_arpa(arpa_path: str) -> Set[str]:
+    """Read unigrams from arpa file."""
+    unigrams = set()
+    with open(arpa_path) as f:
+        start_1_gram = False
+        for line in f:
+            line = line.strip()
+            if line == "\\1-grams:":
+                start_1_gram = True
+            elif line == "\\2-grams:":
+                break
+            if start_1_gram and len(line) > 0:
+                parts = line.split("\t")
+                if len(parts) == 3:
+                    unigrams.add(parts[1])
+    if len(unigrams) == 0:
+        raise ValueError("No unigrams found in arpa file. Something is wrong with the file.")
+    return unigrams
+
+
+def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) -> Set[str]:
+    """Filter unigrams down to vocabulary that exists in kenlm_model."""
+    if len(unigrams) < 1000:
+        logger.warning(
+            "Only %s unigrams passed as vocabulary. Is this small or artificial data?",
+            len(unigrams),
+        )
+    unigram_set = set(unigrams)
+    unigram_set = set([t for t in unigram_set if t in kenlm_model])
+    retained_fraction = 1.0 if len(unigrams) == 0 else len(unigram_set) / len(unigrams)
+    if retained_fraction < 0.1:
+        logger.warning(
+            "Only %s%% of unigrams in vocabulary found in kenlm model-- this might mean that your "
+            "vocabulary and language model are incompatible. Is this intentional?",
+            round(retained_fraction * 100, 1),
+        )
+    return unigram_set
 
 
 def _get_empty_lm_state() -> kenlm.State:
@@ -146,7 +185,7 @@ class LanguageModel(AbstractLanguageModel):
     def __init__(
         self,
         kenlm_model: kenlm.Model,
-        unigrams: Optional[Iterable[str]] = None,
+        unigrams: Optional[Collection[str]] = None,
         alpha: float = DEFAULT_ALPHA,
         beta: float = DEFAULT_BETA,
         unk_score_offset: float = DEFAULT_UNK_LOGP_OFFSET,
@@ -164,10 +203,11 @@ class LanguageModel(AbstractLanguageModel):
         """
         self._kenlm_model = kenlm_model
         if unigrams is None:
+            logger.warning("No known unigrams provided, decoding results might be a lot worse.")
             unigram_set = set()
             char_trie = None
         else:
-            unigram_set = set([t for t in set(unigrams) if t in self._kenlm_model])
+            unigram_set = _prepare_unigram_set(unigrams, self._kenlm_model)
             char_trie = CharTrie.fromkeys(unigram_set)
         self._unigram_set = unigram_set
         self._char_trie = char_trie
@@ -202,8 +242,10 @@ class LanguageModel(AbstractLanguageModel):
     def score_partial_token(self, partial_token: str) -> float:
         """Get partial token score."""
         if self._char_trie is None:
-            return 0.0
-        unk_score = self.unk_score_offset * int(self._char_trie.has_node(partial_token) == 0)
+            is_oov = 1.0
+        else:
+            is_oov = int(self._char_trie.has_node(partial_token) == 0)
+        unk_score = self.unk_score_offset * is_oov
         # if unk token length exceeds expected length then additionally decrease score
         if len(partial_token) > AVG_TOKEN_LEN:
             unk_score = unk_score * len(partial_token) / AVG_TOKEN_LEN

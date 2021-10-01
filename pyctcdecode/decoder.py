@@ -6,11 +6,11 @@ import heapq
 import logging
 import math
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
-from .alphabet import BPE_CHAR, Alphabet
+from .alphabet import BPE_TOKEN, Alphabet, verify_alphabet_coverage
 from .constants import (
     DEFAULT_ALPHA,
     DEFAULT_BEAM_WIDTH,
@@ -23,7 +23,12 @@ from .constants import (
     DEFAULT_UNK_LOGP_OFFSET,
     MIN_TOKEN_CLIP_P,
 )
-from .language_model import AbstractLanguageModel, HotwordScorer, LanguageModel
+from .language_model import (
+    AbstractLanguageModel,
+    HotwordScorer,
+    LanguageModel,
+    load_unigram_set_from_arpa,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -363,13 +368,13 @@ class BeamSearchDecoderCTC:
                             )
                         )
                     # if bpe and leading space char
-                    elif self._is_bpe and (char[:1] == BPE_CHAR or force_next_break):
+                    elif self._is_bpe and (char[:1] == BPE_TOKEN or force_next_break):
                         force_next_break = False
                         # some tokens are bounded on both sides like ▁⁇▁
                         clean_char = char
-                        if char[:1] == BPE_CHAR:
+                        if char[:1] == BPE_TOKEN:
                             clean_char = clean_char[1:]
-                        if char[-1:] == BPE_CHAR:
+                        if char[-1:] == BPE_TOKEN:
                             clean_char = clean_char[:-1]
                             force_next_break = True
                         new_frame_list = (
@@ -668,35 +673,41 @@ class BeamSearchDecoderCTC:
 
 def build_ctcdecoder(
     labels: List[str],
-    kenlm_model: Optional[kenlm.Model] = None,
-    unigrams: Optional[Iterable[str]] = None,
+    kenlm_model_path: Optional[str] = None,
+    unigrams: Optional[Collection[str]] = None,
     alpha: float = DEFAULT_ALPHA,
     beta: float = DEFAULT_BETA,
     unk_score_offset: float = DEFAULT_UNK_LOGP_OFFSET,
     lm_score_boundary: bool = DEFAULT_SCORE_LM_BOUNDARY,
-    ctc_token_idx: Optional[int] = None,
-    is_bpe: bool = False,
 ) -> BeamSearchDecoderCTC:
     """Build a BeamSearchDecoderCTC instance with main functionality.
 
     Args:
         labels: class containing the labels for input logit matrices
-        kenlm_model: instance of kenlm n-gram language model `kenlm.Model`
+        kenlm_model_path: path to kenlm n-gram language model
         unigrams: list of known word unigrams
         alpha: weight for language model during shallow fusion
         beta: weight for length score adjustment of during scoring
         unk_score_offset: amount of log score offset for unknown tokens
         lm_score_boundary: whether to have kenlm respect boundaries when scoring
-        ctc_token_idx: index of ctc blank token within the labels
-        is_bpe: indicate if labels are BPE type
 
     Returns:
         instance of BeamSearchDecoderCTC
     """
-    if is_bpe:
-        alphabet = Alphabet.build_bpe_alphabet(labels, ctc_token_idx=ctc_token_idx)
-    else:
-        alphabet = Alphabet.build_alphabet(labels, ctc_token_idx=ctc_token_idx)
+    kenlm_model = None if kenlm_model_path is None else kenlm.Model(kenlm_model_path)
+    if kenlm_model_path is not None and kenlm_model_path.endswith(".arpa"):
+        logger.info("Using arpa instead of binary LM file, decoder instantiation might be slow.")
+    if unigrams is None and kenlm_model_path is not None:
+        if kenlm_model_path.endswith(".arpa"):
+            unigrams = load_unigram_set_from_arpa(kenlm_model_path)
+        else:
+            logger.warning(
+                "Unigrams not provided and cannot be automatically determined from LM file (only "
+                "arpa format). Decoding accuracy might be reduced."
+            )
+    alphabet = Alphabet.build_alphabet(labels)
+    if unigrams is not None:
+        verify_alphabet_coverage(alphabet, unigrams)
     if kenlm_model is not None:
         language_model: Optional[AbstractLanguageModel] = LanguageModel(
             kenlm_model,
