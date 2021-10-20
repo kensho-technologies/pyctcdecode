@@ -85,7 +85,7 @@ Batch support via multiprocessing:
 from multiprocessing import Pool
 
 with Pool() as pool:
-    text_list = decoder.decode_batch(logits_list, pool)
+    text_list = decoder.decode_batch(pool, logits_list)
 ```
 
 Use `pyctcdecode` for a pretrained Conformer-CTC model:
