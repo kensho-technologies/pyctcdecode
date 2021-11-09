@@ -6,7 +6,7 @@
 
 ## pyctcdecode
 
-A fast and feature-rich CTC beam search decoder for speech recognition written in Python, providing n-gram (kenlm) language model support similar to PaddlePaddle's decoder, but incorporating many new features such as byte pair encoding and real-time decoding to support models like Nvidia's [Conformer-CTC](tutorials/01_pipeline_nemo.ipynb) or Facebook's [Wav2Vec2](tutorials/02_asr_huggingface.ipynb).
+A fast and feature-rich CTC beam search decoder for speech recognition written in Python, providing n-gram (kenlm) language model support similar to PaddlePaddle's decoder, but incorporating many new features such as byte pair encoding and real-time decoding to support models like Nvidia's [Conformer-CTC](tutorials/01_pipeline_nemo.ipynb) or Facebook's [Wav2Vec2](tutorials/02_pipeline_huggingface.ipynb).
 
 ``` bash
 pip install pyctcdecode
