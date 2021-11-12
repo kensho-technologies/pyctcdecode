@@ -61,7 +61,7 @@ EXTRAS_REQUIRE = {
         "pylint",
         "pytest",
         "pytest-cov",
-        "huggingface_hub",
+        "huggingface-hub",
     ]
 }
 
