@@ -22,8 +22,6 @@ from .constants import (
 )
 
 DEFAULT_MODEL_FILE_NAME = "kenLM.arpa"
-LIBRARY_NAME = "pyctcdecode"
-CACHE_DIRECTORY = os.path.join(Path.home(), ".cache", LIBRARY_NAME)
 
 
 logger = logging.getLogger(__name__)
@@ -302,24 +300,30 @@ class LanguageModel(AbstractLanguageModel):
             score_boundary: whether to have kenlm respect boundaries when scoring
             model_file_name: file name of the model as expected to be saved on https://huggingface.co/.
         """
-        from . import __version__ as VERSION
+        if os.path.isfile(pretrained_path):
+            logger.info(f"Path to local file {pretrained_path} provided. Loading KenLM model from local file.")
+            kenlm_model_path = pretrained_path
+        else:
+            from . import __version__ as VERSION, __package_name__ as LIBRARY_NAME
 
-        try:
-            from huggingface_hub import hf_hub_download
-        except ImportError:
-            raise ImportError(
-                "You need to install huggingface_hub to use `load_from_hf_hub`. "
-                "See https://pypi.org/project/huggingface-hub/ for installation."
+            CACHE_DIRECTORY = os.path.join(Path.home(), ".cache", LIBRARY_NAME)
+
+            try:
+                from huggingface_hub import hf_hub_download
+            except ImportError:
+                raise ImportError(
+                    "You need to install huggingface_hub to use `load_from_hf_hub`. "
+                    "See https://pypi.org/project/huggingface-hub/ for installation."
+                )
+
+            # download and cache model
+            kenlm_model_path = hf_hub_download(
+                repo_id=pretrained_path, 
+                filename=model_file_name,
+                library_name=LIBRARY_NAME,
+                library_version=VERSION,
+                cache_dir=CACHE_DIRECTORY,
             )
-
-        # download and cache model
-        kenlm_model_path = hf_hub_download(
-            repo_id=pretrained_path, 
-            filename=model_file_name,
-            library_name=LIBRARY_NAME,
-            library_version=VERSION,
-            cache_dir=CACHE_DIRECTORY,
-        )
 
         # load unigrams if possible
         if unigrams is None:

@@ -68,6 +68,27 @@ class TestLanguageModel(unittest.TestCase):
         has_token = char_trie.has_node("U.S") > 0
         self.assertTrue(has_token)
 
+    def test_load_from_hub(self):
+        # test local loading
+        lm = LanguageModel.load_from_hf_hub(
+            KENLM_BINARY_PATH,
+            alpha=0.5,
+            beta=1.5,
+            unk_score_offset=-10,
+            score_boundary=True,
+        )
+        self.assertIsInstance(lm, LanguageModel)
+
+        # test loading from hub
+        lm = LanguageModel.load_from_hf_hub(
+            "kensho/testing_dummy_kenlm",
+            alpha=0.5,
+            beta=1.5,
+            unk_score_offset=-10,
+            score_boundary=True,
+        )
+        self.assertIsInstance(lm, LanguageModel)
+
 
 # fuzz tests below generated with `hypothesis write language_model.py` and edited for concision.
 
