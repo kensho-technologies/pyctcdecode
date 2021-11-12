@@ -7,6 +7,8 @@ import re
 from typing import Collection, Iterable, List, Optional, Pattern, Set, Tuple, cast
 
 import numpy as np
+import os
+from pathlib import Path
 from pygtrie import CharTrie  # type: ignore
 
 from .constants import (
@@ -18,6 +20,10 @@ from .constants import (
     DEFAULT_UNK_LOGP_OFFSET,
     LOG_BASE_CHANGE_FACTOR,
 )
+
+DEFAULT_MODEL_FILE_NAME = "kenLM.arpa"
+LIBRARY_NAME = "pyctcdecode"
+CACHE_DIRECTORY = os.path.join(Path.home(), ".cache", LIBRARY_NAME)
 
 
 logger = logging.getLogger(__name__)
@@ -270,6 +276,67 @@ class LanguageModel(AbstractLanguageModel):
             lm_score = lm_score + self._get_raw_end_score(end_state)
         lm_score = self.alpha * lm_score * LOG_BASE_CHANGE_FACTOR + self.beta
         return lm_score, end_state
+
+    @classmethod
+    def load_from_hf_hub(
+        cls,
+        pretrained_path: str,
+        unigrams: Optional[Collection[str]] = None,
+        alpha: float = DEFAULT_ALPHA,
+        beta: float = DEFAULT_BETA,
+        unk_score_offset: float = DEFAULT_UNK_LOGP_OFFSET,
+        score_boundary: bool = DEFAULT_SCORE_LM_BOUNDARY,
+        model_file_name: str = DEFAULT_MODEL_FILE_NAME,
+    ):
+        """Class method to load model from https://huggingface.co/
+
+        Args:
+            pretrained_path: string, the `model id` of a pretrained model hosted inside a model
+                repo on https://huggingface.co/. Valid model ids can be namespaced under a user or
+                organization name, like ``kensho/5gram-spanish-kenLM``. For more information, please
+                take a look at https://huggingface.co/docs/hub/main .
+            unigrams: list of known word unigrams
+            alpha: weight for language model during shallow fusion
+            beta: weight for length score adjustment of during scoring
+            unk_score_offset: amount of log score offset for unknown tokens
+            score_boundary: whether to have kenlm respect boundaries when scoring
+            model_file_name: file name of the model as expected to be saved on https://huggingface.co/.
+        """
+        from . import __version__ as VERSION
+
+        try:
+            from huggingface_hub import hf_hub_url, cached_download
+        except ImportError:
+            raise ImportError(
+                "You need to install huggingface_hub to use `load_from_hf_hub`. "
+                "See https://pypi.org/project/huggingface-hub/ for installation."
+            )
+
+        # download and cache model
+        model_download_url = hf_hub_url(repo_id=pretrained_path, filename=model_file_name)
+        kenlm_model_path = str(
+            cached_download(
+                url=model_download_url,
+                library_name=LIBRARY_NAME,
+                library_version=VERSION,
+                cache_dir=CACHE_DIRECTORY,
+            )
+        )
+
+        # load unigrams if possible
+        if unigrams is None:
+            try:
+                unigrams = load_unigram_set_from_arpa(kenlm_model_path)
+            except ValueError:
+                logger.warning(
+                    "Unigrams not provided and cannot be automatically determined from LM file (only "
+                    "arpa format). Decoding accuracy might be reduced."
+                )
+
+        # load KenLM model
+        kenlm_model = kenlm.Model(kenlm_model_path)
+
+        return cls(kenlm_model, unigrams, alpha=alpha, beta=beta, unk_score_offset=unk_score_offset, score_boundary=score_boundary)
 
 
 class MultiLanguageModel(AbstractLanguageModel):
