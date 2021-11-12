@@ -305,7 +305,7 @@ class LanguageModel(AbstractLanguageModel):
         from . import __version__ as VERSION
 
         try:
-            from huggingface_hub import hf_hub_url, cached_download
+            from huggingface_hub import hf_hub_download
         except ImportError:
             raise ImportError(
                 "You need to install huggingface_hub to use `load_from_hf_hub`. "
@@ -313,14 +313,12 @@ class LanguageModel(AbstractLanguageModel):
             )
 
         # download and cache model
-        model_download_url = hf_hub_url(repo_id=pretrained_path, filename=model_file_name)
-        kenlm_model_path = str(
-            cached_download(
-                url=model_download_url,
-                library_name=LIBRARY_NAME,
-                library_version=VERSION,
-                cache_dir=CACHE_DIRECTORY,
-            )
+        kenlm_model_path = hf_hub_download(
+            repo_id=pretrained_path, 
+            filename=model_file_name,
+            library_name=LIBRARY_NAME,
+            library_version=VERSION,
+            cache_dir=CACHE_DIRECTORY,
         )
 
         # load unigrams if possible
