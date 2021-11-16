@@ -6,7 +6,7 @@ import heapq
 import logging
 import math
 import os
-import pickle
+import pickle  # nosec
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
@@ -672,7 +672,7 @@ class BeamSearchDecoderCTC:
         """Save a decoder to a directory."""
         alphabet_path = os.path.join(filepath, self._ALPHABET_SERIALIZED_FILENAME)
         with open(alphabet_path, "wb") as fi:
-            pickle.dump(self._alphabet, fi)
+            pickle.dump(self._alphabet, fi)  # nosec
 
         lm = BeamSearchDecoderCTC.model_container[self._model_key]
         if lm is None:
@@ -683,14 +683,14 @@ class BeamSearchDecoderCTC:
             lm.save_to_dir(lm_path)
 
     @staticmethod
-    def parse_directory_contents(filepath) -> Dict[str, str]:
+    def parse_directory_contents(filepath: str) -> Dict[str, Union[str, None]]:
         """Check contents of a directory for correct BeamSearchDecoderCTC files."""
         contents = os.listdir(filepath)
         # filter out hidden files
         contents = [c for c in contents if not c.startswith(".") and not c.startswith("__")]
         if len(contents) not in {1, 2}:  # always alphabet, sometimes language model
             raise ValueError(f"Found wrong number of files. Expected 2, found {contents}")
-        if "alphabet.p" not in contents:
+        if BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME not in contents:
             raise ValueError(
                 f"Could not find alphabet pickle file "
                 f"{BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME}. Found {contents}"
@@ -699,6 +699,7 @@ class BeamSearchDecoderCTC:
             filepath, BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME
         )
         contents.remove(BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME)
+        lm_directory: Optional[str]
         if contents:
             lm_directory = contents[0]
             if lm_directory != BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY:
@@ -717,8 +718,8 @@ class BeamSearchDecoderCTC:
     def load_from_dir(cls, filepath: str) -> "BeamSearchDecoderCTC":
         """Load a decoder from a directory."""
         filenames = cls.parse_directory_contents(filepath)
-        with open(filenames["alphabet"], "rb") as fi:
-            alphabet = pickle.load(fi)
+        with open(filenames["alphabet"], "rb") as fi:  # type: ignore
+            alphabet = pickle.load(fi)  # nosec
         if filenames["language_model"] is None:
             language_model = None
         else:
