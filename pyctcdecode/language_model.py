@@ -7,7 +7,7 @@ import logging
 import os
 import re
 import shutil
-from typing import Collection, Iterable, List, Optional, Pattern, Set, Tuple, cast
+from typing import Any, Collection, Dict, Iterable, List, Optional, Pattern, Set, Tuple, cast
 
 import numpy as np
 from pygtrie import CharTrie  # type: ignore
@@ -183,13 +183,13 @@ class AbstractLanguageModel(abc.ABC):
         """Score word conditional on previous lm state."""
         raise NotImplementedError()
 
-    def save_to_dir(self, filepath: str):
+    def save_to_dir(self, filepath: str) -> None:
         """Save model to a directory"""
         # this is deliberately not abstract
         raise NotImplementedError()
 
     @classmethod
-    def load_from_dir(cls, filepath: str):
+    def load_from_dir(cls, filepath: str) -> "AbstractLanguageModel":
         """Load a model from a directory"""
         raise NotImplementedError()
 
@@ -288,7 +288,7 @@ class LanguageModel(AbstractLanguageModel):
         return lm_score, end_state
 
     @property
-    def serializable_attrs(self):
+    def serializable_attrs(self) -> Dict[str, Any]:
         """Get a dictionary of the attributes to serialize to json"""
         json_attrs = {}
         for attr in LanguageModel.json_attrs:
@@ -298,7 +298,7 @@ class LanguageModel(AbstractLanguageModel):
             json_attrs[attr] = val
         return json_attrs
 
-    def save_to_dir(self, filepath: str):
+    def save_to_dir(self, filepath: str) -> None:
         """Save to a directory"""
         json_attrs = self.serializable_attrs
         json_attr_path = os.path.join(filepath, "attrs.json")
@@ -319,7 +319,7 @@ class LanguageModel(AbstractLanguageModel):
         shutil.copy2(self._kenlm_model.path, kenlm_path)
 
     @staticmethod
-    def parse_directory_contents(filepath: str):
+    def parse_directory_contents(filepath: str) -> Dict[str, str]:
         """Check the contents of a directory for the correct files"""
         contents = os.listdir(filepath)
         if len(contents) != 3:
@@ -347,14 +347,15 @@ class LanguageModel(AbstractLanguageModel):
         }
 
     @classmethod
-    def load_from_dir(cls, filepath: str):
+    def load_from_dir(cls, filepath: str) -> "LanguageModel":
         """Load from a directory"""
         filenames = cls.parse_directory_contents(filepath)
         with open(filenames["json_attrs"], "r") as fi:
             json_attrs = json.load(fi)
         if set(json_attrs.keys()) != set(cls.json_attrs):
             raise ValueError(
-                f"Expected json serliazed attributes to be {cls.json_attrs} but found {json_attrs.keys()}"
+                f"Expected json serliazed attributes to be {cls.json_attrs} "
+                f"but found {json_attrs.keys()}"
             )
 
         with open(filenames["unigrams"], "r") as fi:
