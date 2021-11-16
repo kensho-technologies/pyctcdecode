@@ -25,7 +25,6 @@ from .constants import (
 
 logger = logging.getLogger(__name__)
 
-
 try:
     import kenlm  # type: ignore
 except ImportError:
@@ -195,8 +194,11 @@ class AbstractLanguageModel(abc.ABC):
 
 
 class LanguageModel(AbstractLanguageModel):
+    # serializatoin constants
     # json attrs will get serialized into a single json file
-    json_attrs = ("alpha", "beta", "unk_score_offset", "score_boundary")
+    JSON_ATTRS = ("alpha", "beta", "unk_score_offset", "score_boundary")
+    _ATTRS_SERIALIZED_FILENAME = "attrs.json"
+    _UNIGRAMS_SERIALIZED_FILENAME = "unigrams.txt"
 
     def __init__(
         self,
@@ -287,11 +289,20 @@ class LanguageModel(AbstractLanguageModel):
         lm_score = self.alpha * lm_score * LOG_BASE_CHANGE_FACTOR + self.beta
         return lm_score, end_state
 
+    # Serialization stuff below
+    # Language models are annoying to serialize because the kenlm model MUST be an actual file
+    # and not just something that is file-like. Language models are written to a directory with
+    # three files:
+    #       unigrams.txt: hold the unigrams. Empty (not non-existent) if there are no unigrams
+    #       attrs.json: json serialized attributes for alpha, beta, etc
+    #       kenlm file (.arpa, .bin, or .binary)
+    # No other files are allowed in the directory (hidden files are ignored)
+
     @property
     def serializable_attrs(self) -> Dict[str, Any]:
         """Get a dictionary of the attributes to serialize to json."""
         json_attrs = {}
-        for attr in LanguageModel.json_attrs:
+        for attr in LanguageModel.JSON_ATTRS:
             val = getattr(self, attr)
             if val is None:
                 raise ValueError(f"attribute {attr} not found. Cannot serialize")
@@ -301,8 +312,8 @@ class LanguageModel(AbstractLanguageModel):
     def save_to_dir(self, filepath: str) -> None:
         """Save to a directory."""
         json_attrs = self.serializable_attrs
-        json_attr_path = os.path.join(filepath, "attrs.json")
-        unigrams_path = os.path.join(filepath, "unigrams.json" "")
+        json_attr_path = os.path.join(filepath, self._ATTRS_SERIALIZED_FILENAME)
+        unigrams_path = os.path.join(filepath, self._UNIGRAMS_SERIALIZED_FILENAME)
         kenlm_filename = os.path.split(self._kenlm_model.path.decode("utf-8"))[1]
         kenlm_path = os.path.join(filepath, kenlm_filename)
 
@@ -310,7 +321,8 @@ class LanguageModel(AbstractLanguageModel):
             json.dump(json_attrs, fi)
 
         with open(unigrams_path, "w") as fi:
-            json.dump(sorted(self._unigram_set), fi)
+            for unigram in sorted(self._unigram_set):
+                fi.write(unigram + "\n")
 
         logger.info(
             "copying kenlm model from %s to %s. " "This may take some time",
@@ -323,27 +335,29 @@ class LanguageModel(AbstractLanguageModel):
     def parse_directory_contents(filepath: str) -> Dict[str, str]:
         """Check the contents of a directory for the correct files."""
         contents = os.listdir(filepath)
+        # filter out hidden files
+        contents = [c for c in contents if not c.startswith(".") and not c.startswith("__")]
         if len(contents) != 3:
             raise ValueError(
                 f"Found wrong number of files in directory. " f"Expected 3 files, found {contents}"
             )
-        if "attrs.json" not in contents:
+        if LanguageModel._ATTRS_SERIALIZED_FILENAME not in contents:
             raise ValueError(f"did not find attributes file in files: {contents}")
         else:
-            contents.remove("attrs.json")
-        if "unigrams.json" not in contents:
+            contents.remove(LanguageModel._ATTRS_SERIALIZED_FILENAME)
+        if LanguageModel._UNIGRAMS_SERIALIZED_FILENAME not in contents:
             raise ValueError(f"did not find unigrams file in files: {contents}")
         else:
-            contents.remove("unigrams.json")
+            contents.remove(LanguageModel._UNIGRAMS_SERIALIZED_FILENAME)
         # now all that's left is the kenlm file, which can be ".arpa" or ".bin"
         kenlm_file = contents[0]
-        if os.path.splitext(kenlm_file)[1] not in {".arpa", ".bin"}:
+        if os.path.splitext(kenlm_file)[1] not in {".arpa", ".bin", ".binary"}:
             raise ValueError(
-                f"Explected kenlm file to end in `.arpa` or `.bin`. Found {kenlm_file}"
+                f"Explected kenlm file to end in `.arpa` or `.bin(ary)`. Found {kenlm_file}"
             )
         return {
-            "json_attrs": os.path.join(filepath, "attrs.json"),
-            "unigrams": os.path.join(filepath, "unigrams.json"),
+            "json_attrs": os.path.join(filepath, LanguageModel._ATTRS_SERIALIZED_FILENAME),
+            "unigrams": os.path.join(filepath, LanguageModel._UNIGRAMS_SERIALIZED_FILENAME),
             "kenlm": os.path.join(filepath, kenlm_file),
         }
 
@@ -353,14 +367,14 @@ class LanguageModel(AbstractLanguageModel):
         filenames = cls.parse_directory_contents(filepath)
         with open(filenames["json_attrs"], "r") as fi:
             json_attrs = json.load(fi)
-        if set(json_attrs.keys()) != set(cls.json_attrs):
+        if set(json_attrs.keys()) != set(cls.JSON_ATTRS):
             raise ValueError(
-                f"Expected json serliazed attributes to be {cls.json_attrs} "
+                f"Expected json serialized attributes to be {cls.JSON_ATTRS} "
                 f"but found {json_attrs.keys()}"
             )
 
         with open(filenames["unigrams"], "r") as fi:
-            unigrams = json.load(fi)
+            unigrams = fi.read().splitlines()
 
         kenlm_model = kenlm.Model(filenames["kenlm"])
         return cls(kenlm_model, unigrams, **json_attrs)

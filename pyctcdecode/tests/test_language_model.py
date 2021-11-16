@@ -139,6 +139,41 @@ class TestLanguageModelSerialization(unittest.TestCase):
         # Remove the directory after the test
         shutil.rmtree(self.temp_dir)
 
+    def _clear_dir(self):
+        """Clear the contents of the temp dir."""
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+            os.makedirs(self.temp_dir)
+
+    def test_parse_directory(self):
+        good_filenames = [
+            ("unigrams.txt", "something.arpa", "attrs.json"),
+            ("unigrams.txt", "something.bin", "attrs.json"),
+            ("unigrams.txt", "something.binary", "attrs.json"),
+            ("unigrams.txt", "something.binary", "attrs.json", ".meaningless", "__pycache__"),
+        ]
+
+        bad_filenames = [
+            ("something.arpa", "attrs.json"),  # missing unigrams
+            ("unigrams.txt", "something.bin", "attrs.json", "extra-file.ext"),  # extra file
+            ("unigrams.txt", "something.binary", "attributes.json"),  # wrong filename
+        ]
+
+        for filenames in good_filenames:
+            self._clear_dir()
+            for fn in filenames:
+                with open(os.path.join(self.temp_dir, fn), "w") as fi:
+                    fi.write("meaningless data")
+            LanguageModel.parse_directory_contents(self.temp_dir)  # should not error out
+
+        for filenames in bad_filenames:
+            self._clear_dir()
+            for fn in filenames:
+                with open(os.path.join(self.temp_dir, fn), "w") as fi:
+                    fi.write("meaningless data")
+            with self.assertRaises(ValueError):
+                LanguageModel.parse_directory_contents(self.temp_dir)
+
     def test_save_and_load_lm(self):
         kenlm_model = kenlm.Model(KENLM_BINARY_PATH)
         lm = LanguageModel(
@@ -172,3 +207,9 @@ class TestLanguageModelSerialization(unittest.TestCase):
         self.assertEqual(lm._unigram_set, new_lm._unigram_set)  # pylint: disable=protected-access
         self.assertEqual(lm.alpha, new_lm.alpha)
         self.assertEqual(lm.beta, new_lm.beta)
+
+        # do it again, make sure we can load the same thing twice without corrupting the item
+        new_lm2 = LanguageModel.load_from_dir(self.temp_dir)
+        self.assertEqual(lm._unigram_set, new_lm2._unigram_set)  # pylint: disable=protected-access
+        self.assertEqual(lm.alpha, new_lm2.alpha)
+        self.assertEqual(lm.beta, new_lm2.beta)
