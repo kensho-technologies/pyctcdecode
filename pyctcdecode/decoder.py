@@ -189,7 +189,7 @@ class BeamSearchDecoderCTC:
 
     # serialization filenames
     _ALPHABET_SERIALIZED_FILENAME = "alphabet.p"
-    _LANGUAGE_MODEL_SERIALIZED_DIRECTORY = "lamguage_model"
+    _LANGUAGE_MODEL_SERIALIZED_DIRECTORY = "language_model"
 
     def __init__(
         self,
@@ -708,7 +708,7 @@ class BeamSearchDecoderCTC:
                     f"{BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY}, found {contents}"
                 )
             lm_directory = os.path.join(
-                lm_directory, BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY
+                filepath, BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY
             )
         else:
             lm_directory = None
@@ -723,6 +723,7 @@ class BeamSearchDecoderCTC:
         if filenames["language_model"] is None:
             language_model = None
         else:
+            print(filenames)
             language_model = LanguageModel.load_from_dir(filenames["language_model"])
         return cls(alphabet, language_model=language_model)
 
