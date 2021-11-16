@@ -6,6 +6,7 @@ import heapq
 import logging
 import math
 import os
+import pickle
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
@@ -33,7 +34,6 @@ from .language_model import (
 
 logger = logging.getLogger(__name__)
 
-
 try:
     import kenlm  # type: ignore
 except ImportError:
@@ -41,7 +41,6 @@ except ImportError:
         "kenlm python bindings are not installed. Most likely you want to install it using: "
         "pip install https://github.com/kpu/kenlm/archive/master.zip"
     )
-
 
 # type hints
 # store frame information for each word, where frame is the logit index of (start_frame, end_frame)
@@ -187,6 +186,10 @@ class BeamSearchDecoderCTC:
     # storage key for the class variable model_container. This allows for multiple model instances
     # to be loaded at the same time.
     model_container: Dict[bytes, Optional[AbstractLanguageModel]] = {}
+
+    # serialization filenames
+    _ALPHABET_SERIALIZED_FILENAME = "alphabet.p"
+    _LANGUAGE_MODEL_SERIALIZED_DIRECTORY = "lamguage_model"
 
     def __init__(
         self,
@@ -664,6 +667,63 @@ class BeamSearchDecoderCTC:
         )
         decoded_text_list: List[str] = pool.map(p_decode, logits_list)
         return decoded_text_list
+
+    def save_to_dir(self, filepath: str) -> None:
+        """Save a decoder to a directory."""
+        alphabet_path = os.path.join(filepath, self._ALPHABET_SERIALIZED_FILENAME)
+        with open(alphabet_path, "wb") as fi:
+            pickle.dump(self._alphabet, fi)
+
+        lm = BeamSearchDecoderCTC.model_container[self._model_key]
+        if lm is None:
+            logger.info("decoder has no language model.")
+        else:
+            lm_path = os.path.join(filepath, self._LANGUAGE_MODEL_SERIALIZED_DIRECTORY)
+            logger.info("Saving language model to %s", lm_path)
+            lm.save_to_dir(lm_path)
+
+    @staticmethod
+    def parse_directory_contents(filepath) -> Dict[str, str]:
+        """Check contents of a directory for correct BeamSearchDecoderCTC files."""
+        contents = os.listdir(filepath)
+        # filter out hidden files
+        contents = [c for c in contents if not c.startswith(".") and not c.startswith("__")]
+        if len(contents) not in {1, 2}:  # always alphabet, sometimes language model
+            raise ValueError(f"Found wrong number of files. Expected 2, found {contents}")
+        if "alphabet.p" not in contents:
+            raise ValueError(
+                f"Could not find alphabet pickle file "
+                f"{BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME}. Found {contents}"
+            )
+        alphabet_filepath = os.path.join(
+            filepath, BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME
+        )
+        contents.remove(BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME)
+        if contents:
+            lm_directory = contents[0]
+            if lm_directory != BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY:
+                raise ValueError(
+                    f"Count not find language model directory. Looking for "
+                    f"{BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY}, found {contents}"
+                )
+            lm_directory = os.path.join(
+                lm_directory, BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY
+            )
+        else:
+            lm_directory = None
+        return {"alphabet": alphabet_filepath, "language_model": lm_directory}
+
+    @classmethod
+    def load_from_dir(cls, filepath: str) -> "BeamSearchDecoderCTC":
+        """Load a decoder from a directory."""
+        filenames = cls.parse_directory_contents(filepath)
+        with open(filenames["alphabet"], "rb") as fi:
+            alphabet = pickle.load(fi)
+        if filenames["language_model"] is None:
+            language_model = None
+        else:
+            language_model = LanguageModel.load_from_dir(filenames["language_model"])
+        return cls(alphabet, language_model=language_model)
 
 
 ##########################################################################################
