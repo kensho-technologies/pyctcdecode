@@ -1,14 +1,14 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import os
 import re
+import shutil
+import tempfile
 import unittest
 
 from hypothesis import given
 from hypothesis import strategies as st
 import kenlm
 from pygtrie import CharTrie
-import shutil
-import tempfile
 
 from pyctcdecode.language_model import HotwordScorer, LanguageModel, MultiLanguageModel
 

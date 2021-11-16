@@ -4,8 +4,8 @@ from __future__ import division
 import abc
 import json
 import logging
-import re
 import os
+import re
 import shutil
 from typing import Collection, Iterable, List, Optional, Pattern, Set, Tuple, cast
 
