@@ -302,7 +302,7 @@ class LanguageModel(AbstractLanguageModel):
         """Save to a directory"""
         json_attrs = self.serializable_attrs
         json_attr_path = os.path.join(filepath, "attrs.json")
-        unigrams_path = os.path.join(filepath, "unigrams.txt")
+        unigrams_path = os.path.join(filepath, "unigrams.json" "")
         kenlm_filename = os.path.split(self._kenlm_model.path.decode("utf-8"))[1]
         kenlm_path = os.path.join(filepath, kenlm_filename)
 
@@ -310,8 +310,8 @@ class LanguageModel(AbstractLanguageModel):
             json.dump(json_attrs, fi)
 
         with open(unigrams_path, "w") as fi:
-            for unigram in sorted(self._unigram_set):
-                fi.write(unigram)
+            json.dump(sorted(self._unigram_set), fi)
+
         logger.info(
             f"copying kenlm model from {self._kenlm_model.path} to {kenlm_path}. "
             f"This may take some time"
@@ -330,19 +330,19 @@ class LanguageModel(AbstractLanguageModel):
             raise ValueError(f"did not find attributes file in files: {contents}")
         else:
             contents.remove("attrs.json")
-        if "unigrams.txt" not in contents:
+        if "unigrams.json" not in contents:
             raise ValueError(f"did not find unigrams file in files: {contents}")
         else:
-            contents.remove("unigrams.txt")
+            contents.remove("unigrams.json")
         # now all that's left is the kenlm file, which can be ".arpa" or ".bin"
         kenlm_file = contents[0]
-        if os.path.splitext(kenlm_file) not in {".arpa", ".bin"}:
+        if os.path.splitext(kenlm_file)[1] not in {".arpa", ".bin"}:
             raise ValueError(
                 f"Explected kenlm file to end in `.arpa` or `.bin`. Found {kenlm_file}"
             )
         return {
             "json_attrs": os.path.join(filepath, "attrs.json"),
-            "unigrams": os.path.join(filepath, "unigrams.txt"),
+            "unigrams": os.path.join(filepath, "unigrams.json"),
             "kenlm": os.path.join(filepath, kenlm_file),
         }
 
@@ -358,7 +358,7 @@ class LanguageModel(AbstractLanguageModel):
             )
 
         with open(filenames["unigrams"], "r") as fi:
-            unigrams = fi.readlines()
+            unigrams = json.load(fi)
 
         kenlm_model = kenlm.Model(filenames["kenlm"])
         return cls(kenlm_model, unigrams, **json_attrs)
