@@ -146,7 +146,7 @@ class TestLanguageModelSerialization(unittest.TestCase):
             unigrams=["bugs", "bunny"],
             alpha=0.1,
         )
-        partial_token = "bu"
+        partial_token = "bu"  # nosec
         score = lm.score_partial_token(partial_token)
 
         lm.save_to_dir(self.temp_dir)
@@ -154,7 +154,7 @@ class TestLanguageModelSerialization(unittest.TestCase):
         self.assertEqual(len(dir_contents), 3)
 
         new_lm = LanguageModel.load_from_dir(self.temp_dir)
-        self.assertEqual(lm._unigram_set, new_lm._unigram_set)
+        self.assertEqual(lm._unigram_set, new_lm._unigram_set)  # pylint: disable=protected-access
         self.assertEqual(lm.alpha, new_lm.alpha)
         self.assertEqual(lm.beta, new_lm.beta)
 
@@ -169,6 +169,6 @@ class TestLanguageModelSerialization(unittest.TestCase):
         dir_contents = lm.parse_directory_contents(self.temp_dir)
         self.assertEqual(len(dir_contents), 3)
         new_lm = LanguageModel.load_from_dir(self.temp_dir)
-        self.assertEqual(lm._unigram_set, new_lm._unigram_set)
+        self.assertEqual(lm._unigram_set, new_lm._unigram_set)  # pylint: disable=protected-access
         self.assertEqual(lm.alpha, new_lm.alpha)
         self.assertEqual(lm.beta, new_lm.beta)

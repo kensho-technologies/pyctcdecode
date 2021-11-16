@@ -184,13 +184,13 @@ class AbstractLanguageModel(abc.ABC):
         raise NotImplementedError()
 
     def save_to_dir(self, filepath: str) -> None:
-        """Save model to a directory"""
+        """Save model to a directory."""
         # this is deliberately not abstract
         raise NotImplementedError()
 
     @classmethod
     def load_from_dir(cls, filepath: str) -> "AbstractLanguageModel":
-        """Load a model from a directory"""
+        """Load a model from a directory."""
         raise NotImplementedError()
 
 
@@ -289,7 +289,7 @@ class LanguageModel(AbstractLanguageModel):
 
     @property
     def serializable_attrs(self) -> Dict[str, Any]:
-        """Get a dictionary of the attributes to serialize to json"""
+        """Get a dictionary of the attributes to serialize to json."""
         json_attrs = {}
         for attr in LanguageModel.json_attrs:
             val = getattr(self, attr)
@@ -299,7 +299,7 @@ class LanguageModel(AbstractLanguageModel):
         return json_attrs
 
     def save_to_dir(self, filepath: str) -> None:
-        """Save to a directory"""
+        """Save to a directory."""
         json_attrs = self.serializable_attrs
         json_attr_path = os.path.join(filepath, "attrs.json")
         unigrams_path = os.path.join(filepath, "unigrams.json" "")
@@ -313,14 +313,15 @@ class LanguageModel(AbstractLanguageModel):
             json.dump(sorted(self._unigram_set), fi)
 
         logger.info(
-            f"copying kenlm model from {self._kenlm_model.path} to {kenlm_path}. "
-            f"This may take some time"
+            "copying kenlm model from %s to %s. " "This may take some time",
+            self._kenlm_model.path,
+            kenlm_path,
         )
         shutil.copy2(self._kenlm_model.path, kenlm_path)
 
     @staticmethod
     def parse_directory_contents(filepath: str) -> Dict[str, str]:
-        """Check the contents of a directory for the correct files"""
+        """Check the contents of a directory for the correct files."""
         contents = os.listdir(filepath)
         if len(contents) != 3:
             raise ValueError(
@@ -348,7 +349,7 @@ class LanguageModel(AbstractLanguageModel):
 
     @classmethod
     def load_from_dir(cls, filepath: str) -> "LanguageModel":
-        """Load from a directory"""
+        """Load from a directory."""
         filenames = cls.parse_directory_contents(filepath)
         with open(filenames["json_attrs"], "r") as fi:
             json_attrs = json.load(fi)
