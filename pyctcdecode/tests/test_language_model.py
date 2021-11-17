@@ -1,8 +1,6 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import os
 import re
-import shutil
-import tempfile
 import unittest
 
 from hypothesis import given
@@ -11,6 +9,7 @@ import kenlm
 from pygtrie import CharTrie
 
 from pyctcdecode.language_model import HotwordScorer, LanguageModel, MultiLanguageModel
+from pyctcdecode.tests.helpers import TempfileTestCase
 
 
 CUR_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -130,21 +129,7 @@ class TestHotwordScorer(unittest.TestCase):
         lm.score_partial_token(partial_token)
 
 
-class TestLanguageModelSerialization(unittest.TestCase):
-    def setUp(self):
-        # Create a temporary directory
-        self.temp_dir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        # Remove the directory after the test
-        shutil.rmtree(self.temp_dir)
-
-    def _clear_dir(self):
-        """Clear the contents of the temp dir."""
-        if os.path.exists(self.temp_dir):
-            shutil.rmtree(self.temp_dir)
-            os.makedirs(self.temp_dir)
-
+class TestLanguageModelSerialization(TempfileTestCase):
     def test_parse_directory(self):
         good_filenames = [
             ("unigrams.txt", "something.arpa", "attrs.json"),
@@ -160,14 +145,14 @@ class TestLanguageModelSerialization(unittest.TestCase):
         ]
 
         for filenames in good_filenames:
-            self._clear_dir()
+            self.clear_dir()
             for fn in filenames:
                 with open(os.path.join(self.temp_dir, fn), "w") as fi:
                     fi.write("meaningless data")
             LanguageModel.parse_directory_contents(self.temp_dir)  # should not error out
 
         for filenames in bad_filenames:
-            self._clear_dir()
+            self.clear_dir()
             for fn in filenames:
                 with open(os.path.join(self.temp_dir, fn), "w") as fi:
                     fi.write("meaningless data")
