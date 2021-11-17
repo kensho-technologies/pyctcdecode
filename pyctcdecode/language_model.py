@@ -311,7 +311,6 @@ class LanguageModel(AbstractLanguageModel):
 
     def save_to_dir(self, filepath: str) -> None:
         """Save to a directory."""
-        os.makedirs(filepath)
         json_attrs = self.serializable_attrs
         json_attr_path = os.path.join(filepath, self._ATTRS_SERIALIZED_FILENAME)
         unigrams_path = os.path.join(filepath, self._UNIGRAMS_SERIALIZED_FILENAME)

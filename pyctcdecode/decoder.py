@@ -679,6 +679,7 @@ class BeamSearchDecoderCTC:
             logger.info("decoder has no language model.")
         else:
             lm_path = os.path.join(filepath, self._LANGUAGE_MODEL_SERIALIZED_DIRECTORY)
+            os.makedirs(lm_path)
             logger.info("Saving language model to %s", lm_path)
             lm.save_to_dir(lm_path)
 
