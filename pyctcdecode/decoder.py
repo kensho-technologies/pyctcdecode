@@ -6,7 +6,6 @@ import heapq
 import logging
 import math
 import os
-import pickle  # nosec
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
@@ -188,7 +187,7 @@ class BeamSearchDecoderCTC:
     model_container: Dict[bytes, Optional[AbstractLanguageModel]] = {}
 
     # serialization filenames
-    _ALPHABET_SERIALIZED_FILENAME = "alphabet.p"
+    _ALPHABET_SERIALIZED_FILENAME = "alphabet.json"
     _LANGUAGE_MODEL_SERIALIZED_DIRECTORY = "language_model"
 
     def __init__(
@@ -671,8 +670,8 @@ class BeamSearchDecoderCTC:
     def save_to_dir(self, filepath: str) -> None:
         """Save a decoder to a directory."""
         alphabet_path = os.path.join(filepath, self._ALPHABET_SERIALIZED_FILENAME)
-        with open(alphabet_path, "wb") as fi:
-            pickle.dump(self._alphabet, fi)  # nosec
+        with open(alphabet_path, "w") as fi:
+            fi.write(self._alphabet.dumps())
 
         lm = BeamSearchDecoderCTC.model_container[self._model_key]
         if lm is None:
@@ -693,7 +692,7 @@ class BeamSearchDecoderCTC:
             raise ValueError(f"Found wrong number of files. Expected 2, found {contents}")
         if BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME not in contents:
             raise ValueError(
-                f"Could not find alphabet pickle file "
+                f"Could not find alphabet file "
                 f"{BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME}. Found {contents}"
             )
         alphabet_filepath = os.path.join(
@@ -719,8 +718,8 @@ class BeamSearchDecoderCTC:
     def load_from_dir(cls, filepath: str) -> "BeamSearchDecoderCTC":
         """Load a decoder from a directory."""
         filenames = cls.parse_directory_contents(filepath)
-        with open(filenames["alphabet"], "rb") as fi:  # type: ignore
-            alphabet = pickle.load(fi)  # nosec
+        with open(filenames["alphabet"], "r") as fi:  # type: ignore
+            alphabet = Alphabet.loads(fi.read())
         if filenames["language_model"] is None:
             language_model = None
         else:

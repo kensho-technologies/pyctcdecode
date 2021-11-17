@@ -538,12 +538,12 @@ class TestSerialization(TempfileTestCase):
 
     def test_parse_directory(self):
         good_filenames = [
-            ("alphabet.p", "language_model"),
-            ("alphabet.p",),
+            ("alphabet.json", "language_model"),
+            ("alphabet.json",),
         ]
         bad_filenames = [
             ("language_model"),  # missing alphabet
-            ("alphabet.p", "language_model", "something-extra"),
+            ("alphabet.json", "language_model", "something-extra"),
             ("alphabet.wrong-ext", "language_model"),
         ]
 

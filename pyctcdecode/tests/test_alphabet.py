@@ -1,4 +1,5 @@
 # Copyright 2021-present Kensho Technologies, LLC.
+import json
 import unittest
 
 from ..alphabet import Alphabet, _normalize_bpe_alphabet, _normalize_regular_alphabet
@@ -72,3 +73,20 @@ class TestModelHelpers(unittest.TestCase):
         label_list = ["▁a", " "]
         with self.assertRaises(ValueError):
             Alphabet.build_alphabet(label_list)
+
+
+class TestAlphabetSerialization(unittest.TestCase):
+    def test_dumps_and_loads(self):
+        for labels, _, _ in KNOWN_MAPPINGS:
+            alphabet = Alphabet.build_alphabet(labels)
+            recovered_alphabet = Alphabet.loads(alphabet.dumps())
+            self.assertEqual(alphabet.labels, recovered_alphabet.labels)
+            self.assertEqual(alphabet.is_bpe, recovered_alphabet.is_bpe)
+
+        bad_param_choices = [
+            {"labels": ["a", "b", "c"]},  # missing "is_bpe"
+            {"labels": ["a", "b", "c"], "is_bpe": True, "extra": 1},  # extra key
+        ]
+        for bad_params in bad_param_choices:
+            with self.assertRaises(ValueError):
+                Alphabet.loads(json.dumps(bad_params))
