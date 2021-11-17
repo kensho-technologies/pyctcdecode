@@ -723,7 +723,6 @@ class BeamSearchDecoderCTC:
         if filenames["language_model"] is None:
             language_model = None
         else:
-            print(filenames)
             language_model = LanguageModel.load_from_dir(filenames["language_model"])
         return cls(alphabet, language_model=language_model)
 
