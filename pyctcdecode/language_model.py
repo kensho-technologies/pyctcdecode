@@ -23,6 +23,7 @@ from .constants import (
     LOG_BASE_CHANGE_FACTOR,
 )
 
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -332,7 +333,7 @@ class LanguageModel(AbstractLanguageModel):
         shutil.copy2(self._kenlm_model.path, kenlm_path)
 
     @staticmethod
-    def parse_directory_contents(filepath: str, ) -> Dict[str, str]:
+    def parse_directory_contents(filepath: str) -> Dict[str, str]:
         """Check the contents of a directory for the correct files."""
         contents = os.listdir(filepath)
         # filter out hidden files
