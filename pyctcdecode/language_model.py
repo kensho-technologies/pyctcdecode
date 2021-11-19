@@ -2,12 +2,14 @@
 from __future__ import division
 
 import abc
+import json
 import logging
+import os
 import re
-from typing import Collection, Iterable, List, Optional, Pattern, Set, Tuple, cast
+import shutil
+from typing import Any, Collection, Dict, Iterable, List, Optional, Pattern, Set, Tuple, cast
 
 import numpy as np
-import os
 from pathlib import Path
 from pygtrie import CharTrie  # type: ignore
 
@@ -21,11 +23,7 @@ from .constants import (
     LOG_BASE_CHANGE_FACTOR,
 )
 
-DEFAULT_MODEL_FILE_NAME = "kenLM.arpa"
-
-
 logger = logging.getLogger(__name__)
-
 
 try:
     import kenlm  # type: ignore
@@ -184,8 +182,24 @@ class AbstractLanguageModel(abc.ABC):
         """Score word conditional on previous lm state."""
         raise NotImplementedError()
 
+    def save_to_dir(self, filepath: str) -> None:
+        """Save model to a directory."""
+        # this is deliberately not abstract
+        raise NotImplementedError()
+
+    @classmethod
+    def load_from_dir(cls, filepath: str) -> "AbstractLanguageModel":
+        """Load a model from a directory."""
+        raise NotImplementedError()
+
 
 class LanguageModel(AbstractLanguageModel):
+    # serializatoin constants
+    # json attrs will get serialized into a single json file
+    JSON_ATTRS = ("alpha", "beta", "unk_score_offset", "score_boundary")
+    _ATTRS_SERIALIZED_FILENAME = "attrs.json"
+    _UNIGRAMS_SERIALIZED_FILENAME = "unigrams.txt"
+
     def __init__(
         self,
         kenlm_model: kenlm.Model,
@@ -275,17 +289,105 @@ class LanguageModel(AbstractLanguageModel):
         lm_score = self.alpha * lm_score * LOG_BASE_CHANGE_FACTOR + self.beta
         return lm_score, end_state
 
+    # Serialization stuff below
+    # Language models are annoying to serialize because the kenlm model MUST be an actual file
+    # and not just something that is file-like. Language models are written to a directory with
+    # three files:
+    #       unigrams.txt: hold the unigrams. Empty (not non-existent) if there are no unigrams
+    #       attrs.json: json serialized attributes for alpha, beta, etc
+    #       kenlm file (.arpa, .bin, or .binary)
+    # No other files are allowed in the directory (hidden files are ignored)
+
+    @property
+    def serializable_attrs(self) -> Dict[str, Any]:
+        """Get a dictionary of the attributes to serialize to json."""
+        json_attrs = {}
+        for attr in LanguageModel.JSON_ATTRS:
+            val = getattr(self, attr)
+            if val is None:
+                raise ValueError(f"attribute {attr} not found. Cannot serialize")
+            json_attrs[attr] = val
+        return json_attrs
+
+    def save_to_dir(self, filepath: str) -> None:
+        """Save to a directory."""
+        json_attrs = self.serializable_attrs
+        json_attr_path = os.path.join(filepath, self._ATTRS_SERIALIZED_FILENAME)
+        unigrams_path = os.path.join(filepath, self._UNIGRAMS_SERIALIZED_FILENAME)
+        kenlm_filename = os.path.split(self._kenlm_model.path.decode("utf-8"))[1]
+        kenlm_path = os.path.join(filepath, kenlm_filename)
+
+        with open(json_attr_path, "w") as fi:
+            json.dump(json_attrs, fi)
+
+        with open(unigrams_path, "w") as fi:
+            for unigram in sorted(self._unigram_set):
+                fi.write(unigram + "\n")
+
+        logger.info(
+            "copying kenlm model from %s to %s. " "This may take some time",
+            self._kenlm_model.path,
+            kenlm_path,
+        )
+        shutil.copy2(self._kenlm_model.path, kenlm_path)
+
+    @staticmethod
+    def parse_directory_contents(filepath: str, ) -> Dict[str, str]:
+        """Check the contents of a directory for the correct files."""
+        contents = os.listdir(filepath)
+        # filter out hidden files
+        contents = [c for c in contents if not c.startswith(".") and not c.startswith("__")]
+        if len(contents) != 3:
+            raise ValueError(
+                f"Found wrong number of files in directory. " f"Expected 3 files, found {contents}"
+            )
+        if LanguageModel._ATTRS_SERIALIZED_FILENAME not in contents:
+            raise ValueError(f"did not find attributes file in files: {contents}")
+        else:
+            contents.remove(LanguageModel._ATTRS_SERIALIZED_FILENAME)
+        if LanguageModel._UNIGRAMS_SERIALIZED_FILENAME not in contents:
+            raise ValueError(f"did not find unigrams file in files: {contents}")
+        else:
+            contents.remove(LanguageModel._UNIGRAMS_SERIALIZED_FILENAME)
+        # now all that's left is the kenlm file, which can be ".arpa" or ".bin"
+        kenlm_file = contents[0]
+        if os.path.splitext(kenlm_file)[1] not in {".arpa", ".bin", ".binary"}:
+            raise ValueError(
+                f"Explected kenlm file to end in `.arpa` or `.bin(ary)`. Found {kenlm_file}"
+            )
+        return {
+            "json_attrs": os.path.join(filepath, LanguageModel._ATTRS_SERIALIZED_FILENAME),
+            "unigrams": os.path.join(filepath, LanguageModel._UNIGRAMS_SERIALIZED_FILENAME),
+            "kenlm": os.path.join(filepath, kenlm_file),
+        }
+
     @classmethod
-    def load_from_hf_hub(
-        cls,
-        pretrained_path: str,
-        unigrams: Optional[Collection[str]] = None,
-        alpha: float = DEFAULT_ALPHA,
-        beta: float = DEFAULT_BETA,
-        unk_score_offset: float = DEFAULT_UNK_LOGP_OFFSET,
-        score_boundary: bool = DEFAULT_SCORE_LM_BOUNDARY,
-        model_file_name: str = DEFAULT_MODEL_FILE_NAME,
-    ):
+    def load_from_dir(cls, filepath: Optional[str] = None, filenames: Optional[Dict] = None) -> "LanguageModel":
+        """Load from a directory."""
+
+        if filenames is None and filepath is None:
+            raise ValueError(
+                "filepath has to be passed if filenames are not passed"
+            )
+        elif filenames is None:
+            filenames = cls.parse_directory_contents(filepath)
+
+        with open(filenames["json_attrs"], "r") as fi:
+            json_attrs = json.load(fi)
+        if set(json_attrs.keys()) != set(cls.JSON_ATTRS):
+            raise ValueError(
+                f"Expected json serialized attributes to be {cls.JSON_ATTRS} "
+                f"but found {json_attrs.keys()}"
+            )
+
+        with open(filenames["unigrams"], "r") as fi:
+            unigrams = fi.read().splitlines()
+
+        kenlm_model = kenlm.Model(filenames["kenlm"])
+        return cls(kenlm_model, unigrams, **json_attrs)
+
+    @classmethod
+    def load_from_hf_hub(cls, pretrained_path: str, kenlm_filename: str = "kenLM.arpa", cache_dir: Optional[str] = None, **kwargs):
         """Class method to load model from https://huggingface.co/
 
         Args:
@@ -293,52 +395,56 @@ class LanguageModel(AbstractLanguageModel):
                 repo on https://huggingface.co/. Valid model ids can be namespaced under a user or
                 organization name, like ``kensho/5gram-spanish-kenLM``. For more information, please
                 take a look at https://huggingface.co/docs/hub/main .
-            unigrams: list of known word unigrams
-            alpha: weight for language model during shallow fusion
-            beta: weight for length score adjustment of during scoring
-            unk_score_offset: amount of log score offset for unknown tokens
-            score_boundary: whether to have kenlm respect boundaries when scoring
-            model_file_name: file name of the model as expected to be saved on https://huggingface.co/.
+            kenlm_filename: file name of the kenlm model as expected to be saved on https://huggingface.co/. Defaults to "kenlm.arpa".
+            cache_dir: path to where the language model should be downloaded and cached.
         """
-        if os.path.isfile(pretrained_path):
-            logger.info(f"Path to local file {pretrained_path} provided. Loading KenLM model from local file.")
-            kenlm_model_path = pretrained_path
-        else:
-            from . import __version__ as VERSION, __package_name__ as LIBRARY_NAME
+        from . import __version__ as VERSION, __package_name__ as LIBRARY_NAME
 
-            CACHE_DIRECTORY = os.path.join(Path.home(), ".cache", LIBRARY_NAME)
+        CACHE_DIRECTORY = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
 
-            try:
-                from huggingface_hub import hf_hub_download
-            except ImportError:
-                raise ImportError(
-                    "You need to install huggingface_hub to use `load_from_hf_hub`. "
-                    "See https://pypi.org/project/huggingface-hub/ for installation."
-                )
-
-            # download and cache model
-            kenlm_model_path = hf_hub_download(
-                repo_id=pretrained_path, 
-                filename=model_file_name,
-                library_name=LIBRARY_NAME,
-                library_version=VERSION,
-                cache_dir=CACHE_DIRECTORY,
+        try:
+            from huggingface_hub import hf_hub_download
+        except ImportError:
+            raise ImportError(
+                "You need to install huggingface_hub to use `load_from_hf_hub`. "
+                "See https://pypi.org/project/huggingface-hub/ for installation."
             )
 
-        # load unigrams if possible
-        if unigrams is None:
-            try:
-                unigrams = load_unigram_set_from_arpa(kenlm_model_path)
-            except ValueError:
-                logger.warning(
-                    "Unigrams not provided and cannot be automatically determined from LM file (only "
-                    "arpa format). Decoding accuracy might be reduced."
-                )
+        # download and cache kenLM model
+        kenlm_model_path = hf_hub_download(
+            repo_id=pretrained_path,
+            filename=kenlm_filename,
+            library_name=LIBRARY_NAME,
+            library_version=VERSION,
+            cache_dir=CACHE_DIRECTORY,
+            **kwargs,
+        )
 
-        # load KenLM model
-        kenlm_model = kenlm.Model(kenlm_model_path)
+        # download and cache unigrams
+        unigrams_path = hf_hub_download(
+            repo_id=pretrained_path, 
+            filename=LanguageModel._UNIGRAMS_SERIALIZED_FILENAME,
+            library_name=LIBRARY_NAME,
+            library_version=VERSION,
+            cache_dir=CACHE_DIRECTORY,
+            **kwargs,
+        )
 
-        return cls(kenlm_model, unigrams, alpha=alpha, beta=beta, unk_score_offset=unk_score_offset, score_boundary=score_boundary)
+        # download and cache attributes
+        json_attrs_path = hf_hub_download(
+            repo_id=pretrained_path,
+            filename=LanguageModel._ATTRS_SERIALIZED_FILENAME,
+            library_name=LIBRARY_NAME,
+            library_version=VERSION,
+            cache_dir=CACHE_DIRECTORY,
+            **kwargs,
+        )
+        filenames = {
+            "kenlm": kenlm_model_path,
+            "unigrams": unigrams_path,
+            "json_attrs": json_attrs_path,
+        }
+        return cls.load_from_dir(filenames=filenames)
 
 
 class MultiLanguageModel(AbstractLanguageModel):
