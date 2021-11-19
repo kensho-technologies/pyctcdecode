@@ -72,6 +72,7 @@ class TestLanguageModel(unittest.TestCase):
         has_token = char_trie.has_node("U.S") > 0
         self.assertTrue(has_token)
 
+
 # fuzz tests below generated with `hypothesis write language_model.py` and edited for concision.
 
 
