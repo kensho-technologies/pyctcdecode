@@ -10,7 +10,6 @@ import shutil
 from typing import Any, Collection, Dict, Iterable, List, Optional, Pattern, Set, Tuple, cast
 
 import numpy as np
-from pathlib import Path
 from pygtrie import CharTrie  # type: ignore
 
 from .constants import (
@@ -365,9 +364,7 @@ class LanguageModel(AbstractLanguageModel):
     @classmethod
     def load_from_dir(cls, filepath: str) -> "LanguageModel":
         """Load from a directory."""
-
         filenames = cls.parse_directory_contents(filepath)
-
         with open(filenames["json_attrs"], "r") as fi:
             json_attrs = json.load(fi)
         if set(json_attrs.keys()) != set(cls.JSON_ATTRS):
@@ -381,34 +378,6 @@ class LanguageModel(AbstractLanguageModel):
 
         kenlm_model = kenlm.Model(filenames["kenlm"])
         return cls(kenlm_model, unigrams, **json_attrs)
-
-    @classmethod
-    def load_from_hf_hub(cls, model_id: str, cache_dir: Optional[str] = None, **kwargs):
-        """Class method to load model from https://huggingface.co/
-
-        Args:
-            model_id: string, the `model id` of a pretrained model hosted inside a model
-                repo on https://huggingface.co/. Valid model ids can be namespaced under a user or
-                organization name, like ``kensho/5gram-spanish-kenLM``. For more information, please
-                take a look at https://huggingface.co/docs/hub/main.
-            cache_dir: path to where the language model should be downloaded and cached.
-        """
-        from . import __version__ as VERSION, __package_name__ as LIBRARY_NAME
-        from requests.exceptions import HTTPError
-
-        CACHE_DIRECTORY = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
-
-        try:
-            from huggingface_hub import snapshot_download
-        except ImportError:
-            raise ImportError(
-                "You need to install huggingface_hub to use `load_from_hf_hub`. "
-                "See https://pypi.org/project/huggingface-hub/ for installation."
-            )
-
-        cached_directory = snapshot_download(model_id, cache_dir=cache_dir, **kwargs)
-
-        return cls.load_from_dir(cached_directory)
 
 
 class MultiLanguageModel(AbstractLanguageModel):

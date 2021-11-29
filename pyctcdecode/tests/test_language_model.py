@@ -11,8 +11,6 @@ from pygtrie import CharTrie
 from pyctcdecode.language_model import HotwordScorer, LanguageModel, MultiLanguageModel
 from pyctcdecode.tests.helpers import TempfileTestCase
 
-from huggingface_hub.file_download import url_to_filename
-
 
 CUR_PATH = os.path.dirname(os.path.abspath(__file__))
 KENLM_BINARY_PATH = os.path.join(CUR_PATH, "sample_data", "bugs_bunny_kenlm.arpa")
