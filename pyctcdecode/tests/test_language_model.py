@@ -14,7 +14,6 @@ from pyctcdecode.tests.helpers import TempfileTestCase
 from huggingface_hub.file_download import url_to_filename
 
 
-
 CUR_PATH = os.path.dirname(os.path.abspath(__file__))
 KENLM_BINARY_PATH = os.path.join(CUR_PATH, "sample_data", "bugs_bunny_kenlm.arpa")
 
@@ -217,8 +216,11 @@ class TestLanguageModelSerialization(TempfileTestCase):
         hf_url = "https://huggingface.co/{}/resolve/main/{}"
         dummy_hub_name = "kensho/dummy_test"
 
+        # rename `bugs_bunny_kenlm.arpa` to `kenLM.arpa`
+        kenlm_filename = "kenLM.arpa"
+        os.rename(os.path.join(self.temp_dir, KENLM_BINARY_PATH.split("/")[-1]), os.path.join(self.temp_dir, kenlm_filename))
+
         # get file names
-        kenlm_filename = KENLM_BINARY_PATH.split("/")[-1]
         attrs_filename = LanguageModel._ATTRS_SERIALIZED_FILENAME
         unigrams_filename = LanguageModel._UNIGRAMS_SERIALIZED_FILENAME
 
@@ -233,7 +235,7 @@ class TestLanguageModelSerialization(TempfileTestCase):
         os.rename(unigrams_file, os.path.join(self.temp_dir, url_to_filename(hf_url.format(dummy_hub_name, unigrams_filename))))
 
         # load in offline mode
-        new_lm = LanguageModel.load_from_hf_hub(dummy_hub_name, kenlm_filename=kenlm_filename, cache_dir=self.temp_dir, local_files_only=True)
+        new_lm = LanguageModel.load_from_hf_hub(dummy_hub_name, cache_dir=self.temp_dir, local_files_only=True)
 
         new_score = new_lm.score_partial_token(partial_token)
         self.assertEqual(new_score, score)

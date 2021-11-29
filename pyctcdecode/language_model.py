@@ -363,15 +363,16 @@ class LanguageModel(AbstractLanguageModel):
         }
 
     @classmethod
-    def load_from_dir(cls, filepath: Optional[str] = None, filenames: Optional[Dict] = None) -> "LanguageModel":
+    def load_from_dir(cls, filepath: str) -> "LanguageModel":
         """Load from a directory."""
 
-        if filenames is None and filepath is None:
-            raise ValueError(
-                "filepath has to be passed if filenames are not passed"
-            )
-        elif filenames is None:
-            filenames = cls.parse_directory_contents(filepath)
+        filenames = cls.parse_directory_contents(filepath)
+
+        return cls.load_from_filenames(filenames)
+
+    @classmethod
+    def load_from_filenames(cls, filenames: Dict = None) -> "LanguageModel":
+        """Load from a dictionary of filenames."""
 
         with open(filenames["json_attrs"], "r") as fi:
             json_attrs = json.load(fi)
@@ -388,20 +389,25 @@ class LanguageModel(AbstractLanguageModel):
         return cls(kenlm_model, unigrams, **json_attrs)
 
     @classmethod
-    def load_from_hf_hub(cls, pretrained_path: str, kenlm_filename: str = "kenLM.arpa", cache_dir: Optional[str] = None, **kwargs):
+    def load_from_hf_hub(cls, model_id: str, model_format: Optional[str] = "arpa", cache_dir: Optional[str] = None, **kwargs):
         """Class method to load model from https://huggingface.co/
 
         Args:
-            pretrained_path: string, the `model id` of a pretrained model hosted inside a model
+            model_id: string, the `model id` of a pretrained model hosted inside a model
                 repo on https://huggingface.co/. Valid model ids can be namespaced under a user or
                 organization name, like ``kensho/5gram-spanish-kenLM``. For more information, please
-                take a look at https://huggingface.co/docs/hub/main .
-            kenlm_filename: file name of the kenlm model as expected to be saved on https://huggingface.co/. Defaults to "kenlm.arpa".
+                take a look at https://huggingface.co/docs/hub/main.
+            model_format: string, the file format of the kenLM model. Should be set to `"arpa"` or `"bin"`.
             cache_dir: path to where the language model should be downloaded and cached.
         """
         from . import __version__ as VERSION, __package_name__ as LIBRARY_NAME
+        from requests.exceptions import HTTPError
 
         CACHE_DIRECTORY = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
+        kenlm_filename = f"kenLM.{model_format}"
+
+        if model_format not in ["arpa", "bin"]:
+            raise ValueError("Function argument `model_format` has to be set to `'arpa'` or `'bin'`.")
 
         try:
             from huggingface_hub import hf_hub_download
@@ -412,18 +418,24 @@ class LanguageModel(AbstractLanguageModel):
             )
 
         # download and cache kenLM model
-        kenlm_model_path = hf_hub_download(
-            repo_id=pretrained_path,
-            filename=kenlm_filename,
-            library_name=LIBRARY_NAME,
-            library_version=VERSION,
-            cache_dir=CACHE_DIRECTORY,
-            **kwargs,
-        )
+        try:
+            kenlm_model_path = hf_hub_download(
+                repo_id=model_id,
+                filename=kenlm_filename,
+                library_name=LIBRARY_NAME,
+                library_version=VERSION,
+                cache_dir=CACHE_DIRECTORY,
+                **kwargs,
+            )
+        except HTTPError:
+            raise ValueError(
+                f"File `{kenlm_filename}` not found on https://huggingface.co/{model_id}/tree/main ."
+                " Please verify whether function argument `model_format` is set correctly."
+            )
 
         # download and cache unigrams
         unigrams_path = hf_hub_download(
-            repo_id=pretrained_path, 
+            repo_id=model_id, 
             filename=LanguageModel._UNIGRAMS_SERIALIZED_FILENAME,
             library_name=LIBRARY_NAME,
             library_version=VERSION,
@@ -433,7 +445,7 @@ class LanguageModel(AbstractLanguageModel):
 
         # download and cache attributes
         json_attrs_path = hf_hub_download(
-            repo_id=pretrained_path,
+            repo_id=model_id,
             filename=LanguageModel._ATTRS_SERIALIZED_FILENAME,
             library_name=LIBRARY_NAME,
             library_version=VERSION,
@@ -445,7 +457,7 @@ class LanguageModel(AbstractLanguageModel):
             "unigrams": unigrams_path,
             "json_attrs": json_attrs_path,
         }
-        return cls.load_from_dir(filenames=filenames)
+        return cls.load_from_filenames(filenames)
 
 
 class MultiLanguageModel(AbstractLanguageModel):

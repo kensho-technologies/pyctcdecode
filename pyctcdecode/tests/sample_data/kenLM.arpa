@@ -1,0 +1,19 @@
+\data\
+ngram 1=5
+ngram 2=5
+
+\1-grams:
+-10	<unk>	0
+0	<s>	0
+0	</s>	0
+0	bugs	0
+0	bunny	0
+
+\2-grams:
+0	bunny </s>
+-10	bugs </s>
+0	<s> bugs
+-10	<s> bunny
+0	bugs bunny
+
+\end\
