@@ -689,8 +689,6 @@ class BeamSearchDecoderCTC:
         contents = os.listdir(filepath)
         # filter out hidden files
         contents = [c for c in contents if not c.startswith(".") and not c.startswith("__")]
-#        if len(contents) not in {1, 2}:  # always alphabet, sometimes language model
-#            raise ValueError(f"Found wrong number of files. Expected 2, found {contents}")
         if BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME not in contents:
             raise ValueError(
                 f"Could not find alphabet file "
