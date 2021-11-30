@@ -543,7 +543,6 @@ class TestSerialization(TempfileTestCase):
         ]
         bad_filenames = [
             ("language_model"),  # missing alphabet
-            ("alphabet.json", "language_model", "something-extra"),
             ("alphabet.wrong-ext", "language_model"),
         ]
 
@@ -602,9 +601,6 @@ class TestSerialization(TempfileTestCase):
         self.assertEqual(old_num_models + 1, self._count_num_language_models())
 
     def test_load_from_hub_offline(self):
-        # test local loading
-        self.clear_dir()
-
         # create language model and decode text
         alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
         language_model = LanguageModel(TEST_KENLM_MODEL, alpha=1.0)
@@ -612,7 +608,11 @@ class TestSerialization(TempfileTestCase):
         text = decoder.decode(TEST_LOGITS)
         self.assertEqual(text, "bugs bunny")
 
-        # create dummy cached hf dir
+        # We are now pretending to have downloaded a HF repository
+        # called `kesho/dummy_test` into the cache. The format of
+        # cached HF repositories is <flattened-hub-name>.<sha256> which
+        # is created under the hood in `.load_from_hf_hub`. To mock a cached
+        # download we have to do it manually here.
         dummy_hub_name = "kensho/dummy_test"
         dummy_cached_subdir = dummy_hub_name.replace("/", "__") + ".123456aoeusnth"
         dummy_cached_dir = os.path.join(self.temp_dir, dummy_cached_subdir)

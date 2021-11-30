@@ -736,10 +736,9 @@ class BeamSearchDecoderCTC:
                 take a look at https://huggingface.co/docs/hub/main.
             cache_dir: path to where the language model should be downloaded and cached.
         """
-        from . import __version__ as VERSION, __package_name__ as LIBRARY_NAME
-        from requests.exceptions import HTTPError
+        from . import __package_name__ as LIBRARY_NAME
 
-        CACHE_DIRECTORY = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
+        cache_dir = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
 
         try:
             from huggingface_hub import snapshot_download
