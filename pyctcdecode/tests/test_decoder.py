@@ -610,11 +610,11 @@ class TestSerialization(TempfileTestCase):
 
         # We are now pretending to have downloaded a HF repository
         # called `kesho/dummy_test` into the cache. The format of
-        # cached HF repositories is <flattened-hub-name>.<sha256> which
+        # cached HF repositories is <flattened-hub-name>.<branch>.<sha256> which
         # is created under the hood in `.load_from_hf_hub`. To mock a cached
         # download we have to do it manually here.
         dummy_hub_name = "kensho/dummy_test"
-        dummy_cached_subdir = dummy_hub_name.replace("/", "__") + ".123456aoeusnth"
+        dummy_cached_subdir = dummy_hub_name.replace("/", "__") + ".main.123456aoeusnth"
         dummy_cached_dir = os.path.join(self.temp_dir, dummy_cached_subdir)
         os.makedirs(dummy_cached_dir)
 
