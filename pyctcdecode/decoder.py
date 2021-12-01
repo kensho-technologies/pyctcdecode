@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
-import numpy as np
+import numpy as np  # type: ignore
 
 from .alphabet import BPE_TOKEN, Alphabet, verify_alphabet_coverage
 from .constants import (
