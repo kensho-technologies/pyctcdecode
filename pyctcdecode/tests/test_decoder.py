@@ -622,7 +622,9 @@ class TestSerialization(TempfileTestCase):
         decoder.save_to_dir(os.path.join(self.temp_dir, dummy_cached_dir))
 
         # load from cache in offline mode
-        new_decoder = BeamSearchDecoderCTC.load_from_hf_hub(dummy_hub_name, cache_dir=self.temp_dir, local_files_only=True)
+        new_decoder = BeamSearchDecoderCTC.load_from_hf_hub(
+            dummy_hub_name, cache_dir=self.temp_dir, local_files_only=True
+        )
 
         new_text = new_decoder.decode(TEST_LOGITS)
         self.assertEqual(text, new_text)

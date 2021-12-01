@@ -726,8 +726,10 @@ class BeamSearchDecoderCTC:
         return cls(alphabet, language_model=language_model)
 
     @classmethod
-    def load_from_hf_hub(cls, model_id: str, cache_dir: Optional[str] = None, **kwargs):
-        """Class method to load model from https://huggingface.co/
+    def load_from_hf_hub(  # type: ignore
+        cls, model_id: str, cache_dir: Optional[str] = None, **kwargs: Any
+    ) -> "BeamSearchDecoderCTC":
+        """Class method to load model from https://huggingface.co/ .
 
         Args:
             model_id: string, the `model id` of a pretrained model hosted inside a model
@@ -735,13 +737,16 @@ class BeamSearchDecoderCTC:
                 organization name, like ``kensho/5gram-spanish-kenLM``. For more information, please
                 take a look at https://huggingface.co/docs/hub/main.
             cache_dir: path to where the language model should be downloaded and cached.
+
+        Returns:
+            instance of BeamSearchDecoderCTC
         """
         from . import __package_name__ as LIBRARY_NAME
 
         cache_dir = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
 
         try:
-            from huggingface_hub import snapshot_download
+            from huggingface_hub import snapshot_download  # type: ignore
         except ImportError:
             raise ImportError(
                 "You need to install huggingface_hub to use `load_from_hf_hub`. "
