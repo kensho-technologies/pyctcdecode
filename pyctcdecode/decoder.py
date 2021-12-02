@@ -700,8 +700,7 @@ class BeamSearchDecoderCTC:
         contents.remove(BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME)
         lm_directory: Optional[str]
         if contents:
-            lm_directory = contents[0]
-            if lm_directory != BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY:
+            if BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY not in contents:
                 raise ValueError(
                     f"Count not find language model directory. Looking for "
                     f"{BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY}, found {contents}"

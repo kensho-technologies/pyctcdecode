@@ -540,6 +540,7 @@ class TestSerialization(TempfileTestCase):
         good_filenames = [
             ("alphabet.json", "language_model"),
             ("alphabet.json",),
+            ("README.md", "alphabet.json", "language_model"),  # additional file in dir
         ]
         bad_filenames = [
             ("language_model"),  # missing alphabet
