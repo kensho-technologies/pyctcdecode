@@ -6,9 +6,10 @@ import heapq
 import logging
 import math
 import os
+from pathlib import Path
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
-import numpy as np
+import numpy as np  # type: ignore
 
 from .alphabet import BPE_TOKEN, Alphabet, verify_alphabet_coverage
 from .constants import (
@@ -688,8 +689,6 @@ class BeamSearchDecoderCTC:
         contents = os.listdir(filepath)
         # filter out hidden files
         contents = [c for c in contents if not c.startswith(".") and not c.startswith("__")]
-        if len(contents) not in {1, 2}:  # always alphabet, sometimes language model
-            raise ValueError(f"Found wrong number of files. Expected 2, found {contents}")
         if BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME not in contents:
             raise ValueError(
                 f"Could not find alphabet file "
@@ -725,6 +724,38 @@ class BeamSearchDecoderCTC:
         else:
             language_model = LanguageModel.load_from_dir(filenames["language_model"])
         return cls(alphabet, language_model=language_model)
+
+    @classmethod
+    def load_from_hf_hub(  # type: ignore
+        cls, model_id: str, cache_dir: Optional[str] = None, **kwargs: Any
+    ) -> "BeamSearchDecoderCTC":
+        """Class method to load model from https://huggingface.co/ .
+
+        Args:
+            model_id: string, the `model id` of a pretrained model hosted inside a model
+                repo on https://huggingface.co/. Valid model ids can be namespaced under a user or
+                organization name, like ``kensho/5gram-spanish-kenLM``. For more information, please
+                take a look at https://huggingface.co/docs/hub/main.
+            cache_dir: path to where the language model should be downloaded and cached.
+
+        Returns:
+            instance of BeamSearchDecoderCTC
+        """
+        from . import __package_name__ as LIBRARY_NAME
+
+        cache_dir = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
+
+        try:
+            from huggingface_hub import snapshot_download  # type: ignore
+        except ImportError:
+            raise ImportError(
+                "You need to install huggingface_hub to use `load_from_hf_hub`. "
+                "See https://pypi.org/project/huggingface-hub/ for installation."
+            )
+
+        cached_directory = snapshot_download(model_id, cache_dir=cache_dir, **kwargs)
+
+        return cls.load_from_dir(cached_directory)
 
 
 ##########################################################################################

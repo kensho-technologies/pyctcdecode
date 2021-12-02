@@ -9,7 +9,7 @@ import re
 import shutil
 from typing import Any, Collection, Dict, Iterable, List, Optional, Pattern, Set, Tuple, cast
 
-import numpy as np
+import numpy as np  # type: ignore
 from pygtrie import CharTrie  # type: ignore
 
 from .constants import (
