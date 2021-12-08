@@ -52,6 +52,7 @@ EXTRAS_REQUIRE = {
         "black",
         "codecov",
         "flake8",
+        "huggingface-hub",
         "isort>=5.0.0,<6",
         "jupyter",
         "mypy",

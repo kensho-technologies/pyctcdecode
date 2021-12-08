@@ -21,6 +21,7 @@ from ..decoder import (
     build_ctcdecoder,
 )
 from ..language_model import LanguageModel, MultiLanguageModel
+from .helpers import TempfileTestCase
 
 
 def _random_matrix(rows: int, cols: int) -> np.ndarray:
@@ -527,3 +528,104 @@ class TestDecoder(unittest.TestCase):
             unk_score_offset=unk_score_offset,
             lm_score_boundary=lm_score_boundary,
         )
+
+
+class TestSerialization(TempfileTestCase):
+    def _count_num_language_models(self):
+        return sum(
+            [1 for model in BeamSearchDecoderCTC.model_container.values() if model is not None]
+        )
+
+    def test_parse_directory(self):
+        good_filenames = [
+            ("alphabet.json", "language_model"),
+            ("alphabet.json",),
+            ("README.md", "alphabet.json", "language_model"),  # additional file in dir
+        ]
+        bad_filenames = [
+            ("language_model"),  # missing alphabet
+            ("alphabet.wrong-ext", "language_model"),
+        ]
+
+        for filenames in good_filenames:
+            self.clear_dir()
+            for fn in filenames:
+                with open(os.path.join(self.temp_dir, fn), "w") as fi:
+                    fi.write("meaningless data")
+            BeamSearchDecoderCTC.parse_directory_contents(self.temp_dir)  # should not error out
+
+        for filenames in bad_filenames:
+            self.clear_dir()
+            for fn in filenames:
+                with open(os.path.join(self.temp_dir, fn), "w") as fi:
+                    fi.write("meaningless data")
+            with self.assertRaises(ValueError):
+                LanguageModel.parse_directory_contents(self.temp_dir)
+
+    def test_serialization(self):
+        self.clear_dir()
+        decoder = build_ctcdecoder(LIBRI_LABELS)
+        text = decoder.decode(LIBRI_LOGITS)
+        old_num_models = self._count_num_language_models()
+
+        # saving shouldn't alter state of model_container
+        decoder.save_to_dir(self.temp_dir)
+        self.assertEqual(self._count_num_language_models(), old_num_models)
+
+        new_decoder = BeamSearchDecoderCTC.load_from_dir(self.temp_dir)
+        new_text = new_decoder.decode(LIBRI_LOGITS)
+        self.assertEqual(text, new_text)
+
+        # this decoder has no LM so we should not increment the number of models
+        self.assertEqual(old_num_models, self._count_num_language_models())
+
+        self.clear_dir()
+        BeamSearchDecoderCTC.clear_class_models()
+
+        # repeat with a decoder with a language model
+        alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
+        language_model = LanguageModel(TEST_KENLM_MODEL, alpha=1.0)
+        decoder = BeamSearchDecoderCTC(alphabet, language_model)
+        text = decoder.decode(TEST_LOGITS)
+        self.assertEqual(text, "bugs bunny")
+
+        old_num_models = self._count_num_language_models()
+        decoder.save_to_dir(self.temp_dir)
+        # here too, saving should not alter number of lang models
+        self.assertEqual(self._count_num_language_models(), old_num_models)
+
+        new_decoder = BeamSearchDecoderCTC.load_from_dir(self.temp_dir)
+        new_text = new_decoder.decode(TEST_LOGITS)
+        self.assertEqual(text, new_text)
+
+        # this decoder has a language model so we expect one more key
+        self.assertEqual(old_num_models + 1, self._count_num_language_models())
+
+    def test_load_from_hub_offline(self):
+        # create language model and decode text
+        alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
+        language_model = LanguageModel(TEST_KENLM_MODEL, alpha=1.0)
+        decoder = BeamSearchDecoderCTC(alphabet, language_model)
+        text = decoder.decode(TEST_LOGITS)
+        self.assertEqual(text, "bugs bunny")
+
+        # We are now pretending to have downloaded a HF repository
+        # called `kesho/dummy_test` into the cache. The format of
+        # cached HF repositories is <flattened-hub-name>.<branch>.<sha256> which
+        # is created under the hood in `.load_from_hf_hub`. To mock a cached
+        # download we have to do it manually here.
+        dummy_hub_name = "kensho/dummy_test"
+        dummy_cached_subdir = dummy_hub_name.replace("/", "__") + ".main.123456aoeusnth"
+        dummy_cached_dir = os.path.join(self.temp_dir, dummy_cached_subdir)
+        os.makedirs(dummy_cached_dir)
+
+        # save decoder
+        decoder.save_to_dir(os.path.join(self.temp_dir, dummy_cached_dir))
+
+        # load from cache in offline mode
+        new_decoder = BeamSearchDecoderCTC.load_from_hf_hub(
+            dummy_hub_name, cache_dir=self.temp_dir, local_files_only=True
+        )
+
+        new_text = new_decoder.decode(TEST_LOGITS)
+        self.assertEqual(text, new_text)

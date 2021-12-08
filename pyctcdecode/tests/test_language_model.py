@@ -9,6 +9,7 @@ import kenlm
 from pygtrie import CharTrie
 
 from pyctcdecode.language_model import HotwordScorer, LanguageModel, MultiLanguageModel
+from pyctcdecode.tests.helpers import TempfileTestCase
 
 
 CUR_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -126,3 +127,74 @@ class TestHotwordScorer(unittest.TestCase):
             score_boundary=score_boundary,
         )
         lm.score_partial_token(partial_token)
+
+
+class TestLanguageModelSerialization(TempfileTestCase):
+    def test_parse_directory(self):
+        good_filenames = [
+            ("unigrams.txt", "something.arpa", "attrs.json"),
+            ("unigrams.txt", "something.bin", "attrs.json"),
+            ("unigrams.txt", "something.binary", "attrs.json"),
+            ("unigrams.txt", "something.binary", "attrs.json", ".meaningless", "__pycache__"),
+        ]
+
+        bad_filenames = [
+            ("something.arpa", "attrs.json"),  # missing unigrams
+            ("unigrams.txt", "something.bin", "attrs.json", "extra-file.ext"),  # extra file
+            ("unigrams.txt", "something.binary", "attributes.json"),  # wrong filename
+        ]
+
+        for filenames in good_filenames:
+            self.clear_dir()
+            for fn in filenames:
+                with open(os.path.join(self.temp_dir, fn), "w") as fi:
+                    fi.write("meaningless data")
+            LanguageModel.parse_directory_contents(self.temp_dir)  # should not error out
+
+        for filenames in bad_filenames:
+            self.clear_dir()
+            for fn in filenames:
+                with open(os.path.join(self.temp_dir, fn), "w") as fi:
+                    fi.write("meaningless data")
+            with self.assertRaises(ValueError):
+                LanguageModel.parse_directory_contents(self.temp_dir)
+
+    def test_save_and_load_lm(self):
+        kenlm_model = kenlm.Model(KENLM_BINARY_PATH)
+        lm = LanguageModel(
+            kenlm_model=kenlm_model,
+            unigrams=["bugs", "bunny"],
+            alpha=0.1,
+        )
+        partial_token = "bu"  # nosec
+        score = lm.score_partial_token(partial_token)
+
+        lm.save_to_dir(self.temp_dir)
+        dir_contents = lm.parse_directory_contents(self.temp_dir)
+        self.assertEqual(len(dir_contents), 3)
+
+        new_lm = LanguageModel.load_from_dir(self.temp_dir)
+        self.assertEqual(lm._unigram_set, new_lm._unigram_set)  # pylint: disable=protected-access
+        self.assertEqual(lm.alpha, new_lm.alpha)
+        self.assertEqual(lm.beta, new_lm.beta)
+
+        new_score = new_lm.score_partial_token(partial_token)
+        self.assertEqual(new_score, score)
+
+        # do it again with different params
+        # this makes sure things get overwritten properly
+        # ie that unigrams are properly set to None  (and lm._unigram_set to empty set)
+        lm = LanguageModel(kenlm_model=kenlm_model, unigrams=None, alpha=0.3, beta=0.2)
+        lm.save_to_dir(self.temp_dir)
+        dir_contents = lm.parse_directory_contents(self.temp_dir)
+        self.assertEqual(len(dir_contents), 3)
+        new_lm = LanguageModel.load_from_dir(self.temp_dir)
+        self.assertEqual(lm._unigram_set, new_lm._unigram_set)  # pylint: disable=protected-access
+        self.assertEqual(lm.alpha, new_lm.alpha)
+        self.assertEqual(lm.beta, new_lm.beta)
+
+        # do it again, make sure we can load the same thing twice without corrupting the item
+        new_lm2 = LanguageModel.load_from_dir(self.temp_dir)
+        self.assertEqual(lm._unigram_set, new_lm2._unigram_set)  # pylint: disable=protected-access
+        self.assertEqual(lm.alpha, new_lm2.alpha)
+        self.assertEqual(lm.beta, new_lm2.beta)

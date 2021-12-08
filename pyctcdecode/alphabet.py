@@ -1,6 +1,7 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 from __future__ import division
 
+import json
 import logging
 import re
 from typing import Collection, List
@@ -145,6 +146,20 @@ class Alphabet:
         else:
             normalized_labels = _normalize_regular_alphabet(labels)
         return cls(normalized_labels, is_bpe)
+
+    def dumps(self) -> str:
+        """Dump an alphabet to a string."""
+        return json.dumps({"labels": self.labels, "is_bpe": self.is_bpe})
+
+    @classmethod
+    def loads(cls, s: str) -> "Alphabet":
+        """Load an alphabet from a string."""
+        as_dict = json.loads(s)
+        expected_keys = {"is_bpe", "labels"}
+        found_keys = set(as_dict.keys())
+        if set(found_keys) != expected_keys:
+            raise ValueError(f"unexpected keys found. Expected {expected_keys}, found {found_keys}")
+        return cls(as_dict["labels"], as_dict["is_bpe"])
 
 
 def verify_alphabet_coverage(alphabet: Alphabet, unigrams: Collection[str]) -> None:
