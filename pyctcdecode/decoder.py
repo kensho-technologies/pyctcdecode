@@ -6,9 +6,10 @@ import heapq
 import logging
 import math
 import os
+from pathlib import Path
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
-import numpy as np
+import numpy as np  # type: ignore
 
 from .alphabet import BPE_TOKEN, Alphabet, verify_alphabet_coverage
 from .constants import (
@@ -33,7 +34,6 @@ from .language_model import (
 
 logger = logging.getLogger(__name__)
 
-
 try:
     import kenlm  # type: ignore
 except ImportError:
@@ -41,7 +41,6 @@ except ImportError:
         "kenlm python bindings are not installed. Most likely you want to install it using: "
         "pip install https://github.com/kpu/kenlm/archive/master.zip"
     )
-
 
 # type hints
 # store frame information for each word, where frame is the logit index of (start_frame, end_frame)
@@ -53,7 +52,7 @@ Beam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float]
 # same as BEAMS but with current lm score that will be discarded again after sorting
 LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
 # lm state supports single and multi language model
-LMState = Optional[Union[kenlm.State, List[kenlm.State]]]
+LMState = Optional[Union["kenlm.State", List["kenlm.State"]]]
 # for output beams we return the text, the scores, the lm state and the word frame indices
 # text, last_lm_state, text_frames, logit_score, lm_score
 OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
@@ -187,6 +186,10 @@ class BeamSearchDecoderCTC:
     # storage key for the class variable model_container. This allows for multiple model instances
     # to be loaded at the same time.
     model_container: Dict[bytes, Optional[AbstractLanguageModel]] = {}
+
+    # serialization filenames
+    _ALPHABET_SERIALIZED_FILENAME = "alphabet.json"
+    _LANGUAGE_MODEL_SERIALIZED_DIRECTORY = "language_model"
 
     def __init__(
         self,
@@ -664,6 +667,94 @@ class BeamSearchDecoderCTC:
         )
         decoded_text_list: List[str] = pool.map(p_decode, logits_list)
         return decoded_text_list
+
+    def save_to_dir(self, filepath: str) -> None:
+        """Save a decoder to a directory."""
+        alphabet_path = os.path.join(filepath, self._ALPHABET_SERIALIZED_FILENAME)
+        with open(alphabet_path, "w") as fi:
+            fi.write(self._alphabet.dumps())
+
+        lm = BeamSearchDecoderCTC.model_container[self._model_key]
+        if lm is None:
+            logger.info("decoder has no language model.")
+        else:
+            lm_path = os.path.join(filepath, self._LANGUAGE_MODEL_SERIALIZED_DIRECTORY)
+            os.makedirs(lm_path)
+            logger.info("Saving language model to %s", lm_path)
+            lm.save_to_dir(lm_path)
+
+    @staticmethod
+    def parse_directory_contents(filepath: str) -> Dict[str, Union[str, None]]:
+        """Check contents of a directory for correct BeamSearchDecoderCTC files."""
+        contents = os.listdir(filepath)
+        # filter out hidden files
+        contents = [c for c in contents if not c.startswith(".") and not c.startswith("__")]
+        if BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME not in contents:
+            raise ValueError(
+                f"Could not find alphabet file "
+                f"{BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME}. Found {contents}"
+            )
+        alphabet_filepath = os.path.join(
+            filepath, BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME
+        )
+        contents.remove(BeamSearchDecoderCTC._ALPHABET_SERIALIZED_FILENAME)
+        lm_directory: Optional[str]
+        if contents:
+            if BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY not in contents:
+                raise ValueError(
+                    f"Count not find language model directory. Looking for "
+                    f"{BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY}, found {contents}"
+                )
+            lm_directory = os.path.join(
+                filepath, BeamSearchDecoderCTC._LANGUAGE_MODEL_SERIALIZED_DIRECTORY
+            )
+        else:
+            lm_directory = None
+        return {"alphabet": alphabet_filepath, "language_model": lm_directory}
+
+    @classmethod
+    def load_from_dir(cls, filepath: str) -> "BeamSearchDecoderCTC":
+        """Load a decoder from a directory."""
+        filenames = cls.parse_directory_contents(filepath)
+        with open(filenames["alphabet"], "r") as fi:  # type: ignore
+            alphabet = Alphabet.loads(fi.read())
+        if filenames["language_model"] is None:
+            language_model = None
+        else:
+            language_model = LanguageModel.load_from_dir(filenames["language_model"])
+        return cls(alphabet, language_model=language_model)
+
+    @classmethod
+    def load_from_hf_hub(  # type: ignore
+        cls, model_id: str, cache_dir: Optional[str] = None, **kwargs: Any
+    ) -> "BeamSearchDecoderCTC":
+        """Class method to load model from https://huggingface.co/ .
+
+        Args:
+            model_id: string, the `model id` of a pretrained model hosted inside a model
+                repo on https://huggingface.co/. Valid model ids can be namespaced under a user or
+                organization name, like ``kensho/5gram-spanish-kenLM``. For more information, please
+                take a look at https://huggingface.co/docs/hub/main.
+            cache_dir: path to where the language model should be downloaded and cached.
+
+        Returns:
+            instance of BeamSearchDecoderCTC
+        """
+        from . import __package_name__ as LIBRARY_NAME
+
+        cache_dir = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
+
+        try:
+            from huggingface_hub import snapshot_download  # type: ignore
+        except ImportError:
+            raise ImportError(
+                "You need to install huggingface_hub to use `load_from_hf_hub`. "
+                "See https://pypi.org/project/huggingface-hub/ for installation."
+            )
+
+        cached_directory = snapshot_download(model_id, cache_dir=cache_dir, **kwargs)
+
+        return cls.load_from_dir(cached_directory)
 
 
 ##########################################################################################
