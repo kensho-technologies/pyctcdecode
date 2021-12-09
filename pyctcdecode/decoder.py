@@ -52,7 +52,7 @@ Beam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float]
 # same as BEAMS but with current lm score that will be discarded again after sorting
 LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
 # lm state supports single and multi language model
-LMState = Optional[Union[kenlm.State, List[kenlm.State]]]
+LMState = Optional[Union["kenlm.State", List["kenlm.State"]]]
 # for output beams we return the text, the scores, the lm state and the word frame indices
 # text, last_lm_state, text_frames, logit_score, lm_score
 OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]

@@ -54,7 +54,7 @@ def load_unigram_set_from_arpa(arpa_path: str) -> Set[str]:
     return unigrams
 
 
-def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) -> Set[str]:
+def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: "kenlm.Model") -> Set[str]:
     """Filter unigrams down to vocabulary that exists in kenlm_model."""
     if len(unigrams) < 1000:
         logger.warning(
@@ -73,7 +73,7 @@ def _prepare_unigram_set(unigrams: Collection[str], kenlm_model: kenlm.Model) ->
     return unigram_set
 
 
-def _get_empty_lm_state() -> kenlm.State:
+def _get_empty_lm_state() -> "kenlm.State":
     """Get unintialized kenlm state."""
     try:
         kenlm_state = kenlm.State()
@@ -166,7 +166,7 @@ class AbstractLanguageModel(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_start_state(self) -> List[kenlm.State]:
+    def get_start_state(self) -> List["kenlm.State"]:
         """Get initial lm state."""
         raise NotImplementedError()
 
@@ -177,8 +177,8 @@ class AbstractLanguageModel(abc.ABC):
 
     @abc.abstractmethod
     def score(
-        self, prev_state: kenlm.State, word: str, is_last_word: bool = False
-    ) -> Tuple[float, kenlm.State]:
+        self, prev_state: "kenlm.State", word: str, is_last_word: bool = False
+    ) -> Tuple[float, "kenlm.State"]:
         """Score word conditional on previous lm state."""
         raise NotImplementedError()
 
@@ -202,7 +202,7 @@ class LanguageModel(AbstractLanguageModel):
 
     def __init__(
         self,
-        kenlm_model: kenlm.Model,
+        kenlm_model: "kenlm.Model",
         unigrams: Optional[Collection[str]] = None,
         alpha: float = DEFAULT_ALPHA,
         beta: float = DEFAULT_BETA,
@@ -239,7 +239,7 @@ class LanguageModel(AbstractLanguageModel):
         """Get the order of the n-gram language model."""
         return cast(int, (self._kenlm_model.order))
 
-    def get_start_state(self) -> kenlm.State:
+    def get_start_state(self) -> "kenlm.State":
         """Get initial lm state."""
         start_state = _get_empty_lm_state()
         if self.score_boundary:
@@ -248,7 +248,7 @@ class LanguageModel(AbstractLanguageModel):
             self._kenlm_model.NullContextWrite(start_state)
         return start_state
 
-    def _get_raw_end_score(self, start_state: kenlm.State) -> float:
+    def _get_raw_end_score(self, start_state: "kenlm.State") -> float:
         """Calculate final lm score."""
         if self.score_boundary:
             end_state = _get_empty_lm_state()
@@ -270,8 +270,8 @@ class LanguageModel(AbstractLanguageModel):
         return unk_score
 
     def score(
-        self, prev_state: kenlm.State, word: str, is_last_word: bool = False
-    ) -> Tuple[float, kenlm.State]:
+        self, prev_state: "kenlm.State", word: str, is_last_word: bool = False
+    ) -> Tuple[float, "kenlm.State"]:
         """Score word conditional on start state."""
         end_state = _get_empty_lm_state()
         lm_score = self._kenlm_model.BaseScore(prev_state, word, end_state)
@@ -396,7 +396,7 @@ class MultiLanguageModel(AbstractLanguageModel):
         """Get the maximum order of the contained n-gram language model."""
         return max([lm.order for lm in self._language_models])
 
-    def get_start_state(self) -> List[kenlm.State]:
+    def get_start_state(self) -> List["kenlm.State"]:
         """Get initial lm state."""
         return [lm.get_start_state() for lm in self._language_models]
 
@@ -407,8 +407,8 @@ class MultiLanguageModel(AbstractLanguageModel):
         )
 
     def score(
-        self, prev_state: List[kenlm.State], word: str, is_last_word: bool = False
-    ) -> Tuple[float, List[kenlm.State]]:
+        self, prev_state: List["kenlm.State"], word: str, is_last_word: bool = False
+    ) -> Tuple[float, List["kenlm.State"]]:
         """Score word conditional on previous lm state."""
         score = 0.0
         end_state = []
