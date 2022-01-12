@@ -356,8 +356,12 @@ class BeamSearchDecoderCTC:
                 ) in beams:
                     # if only blank token or same token
                     if char == "" or last_char == char:
+                        if char == "":
+                            new_end_frame = part_frames[0]
+                        else:
+                            new_end_frame = frame_idx + 1
                         new_part_frames = (
-                            part_frames if char == "" else (part_frames[0], frame_idx + 1)
+                            part_frames if char == "" else (part_frames[0], new_end_frame)
                         )
                         new_beams.append(
                             (
@@ -383,7 +387,7 @@ class BeamSearchDecoderCTC:
                         new_frame_list = (
                             text_frames
                             if word_part == ""
-                            else text_frames + [(part_frames[0], frame_idx)]
+                            else text_frames + [part_frames]
                         )
                         new_beams.append(
                             (
@@ -392,7 +396,7 @@ class BeamSearchDecoderCTC:
                                 clean_char,
                                 char,
                                 new_frame_list,
-                                (-1, -1),
+                                (frame_idx, frame_idx + 1),
                                 logit_score + p_char,
                             )
                         )

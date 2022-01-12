@@ -469,6 +469,20 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(len(top_beam[2]), len(expected_frames))
         self.assertListEqual(top_beam[2], expected_frames)
 
+        # test for bpe vocabulary
+        bpe_labels = [" ", "▁bugs", "▁bun", "ny", ""]
+        bpe_vocab = {c: n for n, c in enumerate(bpe_labels)}
+        bpe_decoder = build_ctcdecoder(bpe_labels)
+        bpe_ctc_out = ["", "▁bugs", " ", "▁bun", "ny", "", "ny", " "]
+        test_frame_logits = np.zeros((len(bpe_ctc_out), len(SAMPLE_VOCAB)))
+        for n, c in enumerate(bpe_ctc_out):
+            test_frame_logits[n][bpe_vocab.get(c)] = 1
+        top_beam = bpe_decoder.decode_beams(test_frame_logits)[0]
+        self.assertEqual(top_beam[0], "bugs bunny")
+        expected_frames = [("bugs", (1, 2)), ("bunny", (3, 7))]
+        self.assertEqual(len(top_beam[2]), len(expected_frames))
+        self.assertListEqual(top_beam[2], expected_frames)
+
     def test_realistic_alphabet(self):
         decoder = build_ctcdecoder(LIBRI_LABELS)
         text = decoder.decode(LIBRI_LOGITS)
