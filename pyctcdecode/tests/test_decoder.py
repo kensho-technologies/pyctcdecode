@@ -474,7 +474,7 @@ class TestDecoder(unittest.TestCase):
         bpe_vocab = {c: n for n, c in enumerate(bpe_labels)}
         bpe_decoder = build_ctcdecoder(bpe_labels)
         bpe_ctc_out = ["", "▁bugs", "▁bun", "ny", "", "ny", " "]
-        test_frame_logits = np.zeros((len(bpe_ctc_out), len(SAMPLE_VOCAB)))
+        test_frame_logits = np.zeros((len(bpe_ctc_out), len(bpe_vocab)))
         for n, c in enumerate(bpe_ctc_out):
             test_frame_logits[n][bpe_vocab.get(c)] = 1
         top_beam = bpe_decoder.decode_beams(test_frame_logits)[0]
