@@ -384,7 +384,9 @@ class BeamSearchDecoderCTC:
                         if char[-1:] == BPE_TOKEN:
                             clean_char = clean_char[:-1]
                             force_next_break = True
-                        new_frame_list = text_frames if word_part == "" else text_frames + [part_frames]
+                        new_frame_list = (
+                            text_frames if word_part == "" else text_frames + [part_frames]
+                        )
                         new_beams.append(
                             (
                                 text,
