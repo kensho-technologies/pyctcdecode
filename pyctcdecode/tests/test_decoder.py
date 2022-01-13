@@ -602,6 +602,8 @@ class TestSerialization(TempfileTestCase):
         self.assertEqual(old_num_models + 1, self._count_num_language_models())
 
     def test_load_from_hub_offline(self):
+        from huggingface_hub.snapshot_download import REPO_ID_SEPARATOR
+
         # create language model and decode text
         alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
         language_model = LanguageModel(TEST_KENLM_MODEL, alpha=1.0)
@@ -615,7 +617,9 @@ class TestSerialization(TempfileTestCase):
         # is created under the hood in `.load_from_hf_hub`. To mock a cached
         # download we have to do it manually here.
         dummy_hub_name = "kensho/dummy_test"
-        dummy_cached_subdir = dummy_hub_name.replace("/", "__") + ".main.123456aoeusnth"
+        dummy_cached_subdir = (
+            dummy_hub_name.replace("/", REPO_ID_SEPARATOR) + ".main.123456aoeusnth"
+        )
         dummy_cached_dir = os.path.join(self.temp_dir, dummy_cached_subdir)
         os.makedirs(dummy_cached_dir)
 
