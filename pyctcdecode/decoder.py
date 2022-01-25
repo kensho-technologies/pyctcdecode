@@ -240,12 +240,13 @@ class BeamSearchDecoderCTC:
         """Verify correct shape and dimensions for input logits."""
         if len(logits.shape) != 2:
             raise ValueError(
-                "Input logits have %s dimensions, but need 2 for batch decoding: (time, vocabulary)"
+                "Input logits have %s dimensions, but need 2: (time, vocabulary)"
                 % len(logits.shape)
             )
         if logits.shape[-1] != len(self._idx2vocab):
             raise ValueError(
-                "Input logits shape is %s, but vocabulary is size %s. Need logits of shape: (time, vocabulary)"
+                "Input logits shape is %s, but vocabulary is size %s. "
+                "Need logits of shape: (time, vocabulary)"
                 % (logits.shape, len(self._idx2vocab))
             )
 
