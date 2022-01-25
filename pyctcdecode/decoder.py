@@ -236,7 +236,10 @@ class BeamSearchDecoderCTC:
         if self._model_key in BeamSearchDecoderCTC.model_container:
             del BeamSearchDecoderCTC.model_container[self._model_key]
 
-    def _check_logits_dimension(self, logits):
+    def _check_logits_dimension(
+        self,
+        logits: np.ndarray,  # type: ignore [type-arg]
+    ) -> None:
         """Verify correct shape and dimensions for input logits."""
         if len(logits.shape) != 2:
             raise ValueError(
