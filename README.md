@@ -82,9 +82,9 @@ to perform a hyperparameter optimization study on their own data.)_
 Batch support via multiprocessing:
 
 ``` python
-from multiprocessing import Pool
+import multiprocessing
 
-with Pool() as pool:
+with multiprocessing.get_context("fork").Pool() as pool:
     text_list = decoder.decode_batch(pool, logits_list)
 ```
 
