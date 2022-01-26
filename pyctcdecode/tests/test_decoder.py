@@ -5,12 +5,10 @@ import multiprocessing
 import os
 import unittest
 
-from hypothesis import given, settings
-from hypothesis import strategies as st
 import kenlm  # type: ignore
 import numpy as np
 
-from ..alphabet import BPE_TOKEN, UNK_BPE_TOKEN, Alphabet
+from ..alphabet import Alphabet
 from ..decoder import (
     BeamSearchDecoderCTC,
     _merge_beams,
@@ -20,7 +18,7 @@ from ..decoder import (
     _sum_log_scores,
     build_ctcdecoder,
 )
-from ..language_model import LanguageModel, MultiLanguageModel
+from ..language_model import LanguageModel
 from .helpers import TempfileTestCase
 
 
