@@ -257,9 +257,9 @@ class TestDecoder(unittest.TestCase):
 
     def test_decode_batch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
-        with multiprocessing.get_context("fork").Pool() as pool:
-            text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 4)
-        expected_text_list = ["bugs bunny"] * 4
+        with multiprocessing.Pool() as pool:
+            text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 5)
+        expected_text_list = ["bugs bunny"] * 5
         self.assertListEqual(expected_text_list, text_list)
 
     def test_logit_shape_mismatch(self):
@@ -273,7 +273,7 @@ class TestDecoder(unittest.TestCase):
 
     def test_decode_beams_batch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
-        with multiprocessing.get_context("fork").Pool() as pool:
+        with multiprocessing.Pool() as pool:
             text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
             [
