@@ -236,6 +236,22 @@ class BeamSearchDecoderCTC:
         if self._model_key in BeamSearchDecoderCTC.model_container:
             del BeamSearchDecoderCTC.model_container[self._model_key]
 
+    def _check_logits_dimension(
+        self,
+        logits: np.ndarray,  # type: ignore [type-arg]
+    ) -> None:
+        """Verify correct shape and dimensions for input logits."""
+        if len(logits.shape) != 2:
+            raise ValueError(
+                "Input logits have %s dimensions, but need 2: (time, vocabulary)"
+                % len(logits.shape)
+            )
+        if logits.shape[-1] != len(self._idx2vocab):
+            raise ValueError(
+                "Input logits shape is %s, but vocabulary is size %s. "
+                "Need logits of shape: (time, vocabulary)" % (logits.shape, len(self._idx2vocab))
+            )
+
     def _get_lm_beams(
         self,
         beams: List[Beam],
@@ -509,12 +525,7 @@ class BeamSearchDecoderCTC:
         Returns:
             List of beams of type OUTPUT_BEAM with various meta information
         """
-        # check logits dimension
-        if logits.shape[-1] != len(self._idx2vocab):
-            raise ValueError(
-                "Input logits of size %s, but vocabulary is size %s"
-                % (logits.shape[-1], len(self._idx2vocab))
-            )
+        self._check_logits_dimension(logits)
         # prepare hotword input
         hotword_scorer = HotwordScorer.build_scorer(hotwords, weight=hotword_weight)
         # make sure we have log probs as input
@@ -581,12 +592,15 @@ class BeamSearchDecoderCTC:
             beam_width: maximum number of beams at each step in decoding
             beam_prune_logp: beams that are much worse than best beam will be pruned
             token_min_logp: tokens below this logp are skipped unless they are argmax of frame
+            prune_history: prune beams based on shared recent history at the cost of beam diversity
             hotwords: list of words with extra importance, can be OOV for LM
             hotword_weight: weight factor for hotword importance
 
         Returns:
             List of list of beams of type OUTPUT_BEAM_MP_SAFE with various meta information
         """
+        for logits in logits_list:
+            self._check_logits_dimension(logits)
         p_decode = functools.partial(
             self._decode_beams_mp_safe,
             beam_width=beam_width,
