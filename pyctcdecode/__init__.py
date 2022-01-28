@@ -5,4 +5,4 @@ from .language_model import LanguageModel  # noqa
 
 
 __package_name__ = "pyctcdecode"
-__version__ = "0.3.2"
+__version__ = "0.3.3"
