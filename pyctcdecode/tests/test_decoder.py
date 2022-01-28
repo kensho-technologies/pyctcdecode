@@ -1,7 +1,6 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import json
 import math
-import multiprocessing
 import os
 import unittest
 
@@ -198,13 +197,10 @@ TEST_UNIGRAMS = ["bugs", "bunny"]
 
 
 class MockPool:
-    def __init__(self):
-        """init"""
-        pass
-
-    def map(self, f, l):
+    @staticmethod
+    def map(func, list_items):
         """map"""
-        return [f(e) for e in l]
+        return [func(e) for e in list_items]
 
 
 class TestDecoder(unittest.TestCase):
