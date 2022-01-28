@@ -196,9 +196,8 @@ TEST_LOGITS = np.log(np.clip(TEST_PROBS, 1e-15, 1))
 TEST_UNIGRAMS = ["bugs", "bunny"]
 
 
+# Replacement for `multiprocessing.Pool` to get reliable tests that can't crash.
 class MockPool:
-    """Replacement for multiprocessing.Pool to get reliable tests that can't crash."""
-    
     @staticmethod
     def map(func, list_items):
         """Map."""
