@@ -199,7 +199,7 @@ TEST_UNIGRAMS = ["bugs", "bunny"]
 class MockPool:
     @staticmethod
     def map(func, list_items):
-        """map"""
+        """Map."""
         return [func(e) for e in list_items]
 
 
