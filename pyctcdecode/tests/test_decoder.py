@@ -198,6 +198,7 @@ TEST_UNIGRAMS = ["bugs", "bunny"]
 
 class MockPool:
     """Replacement for multiprocessing.Pool to get reliable tests that can't crash."""
+    
     @staticmethod
     def map(func, list_items):
         """Map."""
