@@ -268,6 +268,54 @@ class TestDecoder(unittest.TestCase):
         with self.assertRaises(ValueError):
             _ = decoder.decode(wrong_shape_logits)
 
+    def test_decode_beams_batch(self):
+        decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
+        with multiprocessing.get_context("fork").Pool(1) as pool:
+            text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
+        expected_text_list = [
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+            [
+                (
+                    "bugs bunny",
+                    [("bugs", (0, 4)), ("bunny", (7, 13))],
+                    -2.853399551509947,
+                    0.14660044849005294,
+                )
+            ],
+        ]
+        self.assertListEqual(expected_text_list, text_list)
+
     def test_multi_lm(self):
         alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
         lm = LanguageModel(TEST_KENLM_MODEL)
