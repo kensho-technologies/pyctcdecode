@@ -197,6 +197,16 @@ TEST_LOGITS = np.log(np.clip(TEST_PROBS, 1e-15, 1))
 TEST_UNIGRAMS = ["bugs", "bunny"]
 
 
+class MockPool:
+    def __init__(self):
+        """init"""
+        pass
+
+    def map(self, f, l):
+        """map"""
+        return [f(e) for e in l]
+
+
 class TestDecoder(unittest.TestCase):
     def test_decoder(self):
         alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
@@ -257,8 +267,8 @@ class TestDecoder(unittest.TestCase):
 
     def test_decode_batch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
-        with multiprocessing.get_context("fork").Pool(1) as pool:
-            text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 5)
+        pool = MockPool()
+        text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = ["bugs bunny"] * 5
         self.assertListEqual(expected_text_list, text_list)
 
@@ -270,8 +280,8 @@ class TestDecoder(unittest.TestCase):
 
     def test_decode_beams_batch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
-        with multiprocessing.get_context("fork").Pool(1) as pool:
-            text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
+        pool = MockPool()
+        text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
             [
                 (
