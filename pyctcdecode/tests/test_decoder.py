@@ -1,7 +1,6 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import json
 import math
-import multiprocessing
 import os
 import unittest
 
@@ -197,6 +196,14 @@ TEST_LOGITS = np.log(np.clip(TEST_PROBS, 1e-15, 1))
 TEST_UNIGRAMS = ["bugs", "bunny"]
 
 
+# Replacement for `multiprocessing.Pool` to get reliable tests that can't crash.
+class MockPool:
+    @staticmethod
+    def map(func, list_items):
+        """Map."""
+        return [func(e) for e in list_items]
+
+
 class TestDecoder(unittest.TestCase):
     def test_decoder(self):
         alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
@@ -257,8 +264,8 @@ class TestDecoder(unittest.TestCase):
 
     def test_decode_batch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
-        with multiprocessing.get_context("fork").Pool(1) as pool:
-            text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 5)
+        pool = MockPool()
+        text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = ["bugs bunny"] * 5
         self.assertListEqual(expected_text_list, text_list)
 
@@ -267,14 +274,11 @@ class TestDecoder(unittest.TestCase):
         wrong_shape_logits = np.hstack([TEST_LOGITS] * 2)
         with self.assertRaises(ValueError):
             _ = decoder.decode(wrong_shape_logits)
-        with multiprocessing.get_context("fork").Pool(1) as pool:
-            with self.assertRaises(ValueError):
-                _ = decoder.decode_batch(pool, [wrong_shape_logits] * 5)
 
     def test_decode_beams_batch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
-        with multiprocessing.get_context("fork").Pool(1) as pool:
-            text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
+        pool = MockPool()
+        text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
             [
                 (
