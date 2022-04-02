@@ -25,11 +25,7 @@ pip install pyctcdecode
 ### Quick Start:
 
 ``` python
-import kenlm
 from pyctcdecode import build_ctcdecoder
-
-# load trained kenlm model
-kenlm_model = kenlm.Model("/my/dir/kenlm_model.arpa")
 
 # specify alphabet labels as they appear in logits
 labels = [
@@ -40,7 +36,7 @@ labels = [
 # prepare decoder and decode logits via shallow fusion
 decoder = build_ctcdecoder(
     labels,
-    kenlm_model,
+    kenlm_model_path="/my/dir/kenlm_model.arpa",  # either .arpa or .bin file
     alpha=0.5,  # tuned on a val set
     beta=1.0,  # tuned on a val set
 )
@@ -56,7 +52,7 @@ labels = ["<unk>", "▁bug", "s", "▁bunny"]
 
 decoder = build_ctcdecoder(
     labels,
-    kenlm_model,
+    kenlm_model_path,
 )
 text = decoder.decode(logits)
 ```
