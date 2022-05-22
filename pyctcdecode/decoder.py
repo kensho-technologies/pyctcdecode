@@ -98,7 +98,7 @@ def _log_softmax(
     exp_tmp = np.exp(tmp)
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
-        s = np.sum(exp_tmp, axis=axis, keepdims=True)  # type: ignore [type-arg]
+        s = np.sum(exp_tmp, axis=axis, keepdims=True)  # type: ignore [arg-type]
         out: np.ndarray = np.log(s)  # type: ignore [type-arg]
     out = tmp - out
     return out
