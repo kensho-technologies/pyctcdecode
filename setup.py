@@ -19,7 +19,7 @@ def read_file(filename: str) -> str:
     if platform.platform().startswith("Windows"):
         # pip local install fails in windows command prompt due to character encoding issue
         # without the encoding argument
-        with codecs.open(os.path.join(here, "pyctcdecode", filename, encoding="UTF-8"), "r") as f:
+        with codecs.open(os.path.join(here, "pyctcdecode", filename), "r", encoding="UTF-8") as f:
             file_text = f.read()
 
     else:
