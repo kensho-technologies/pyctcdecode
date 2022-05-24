@@ -7,6 +7,7 @@ import unittest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 import kenlm  # type: ignore
+from multiprocessing.context import SpawnContext
 import numpy as np
 
 from ..alphabet import BPE_TOKEN, UNK_BPE_TOKEN, Alphabet
@@ -20,7 +21,6 @@ from ..decoder import (
     build_ctcdecoder,
 )
 from ..language_model import LanguageModel, MultiLanguageModel
-from multiprocessing.context import SpawnContext
 from .helpers import TempfileTestCase
 
 
