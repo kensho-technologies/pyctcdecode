@@ -642,7 +642,7 @@ class BeamSearchDecoderCTC:
             prune_history=prune_history,
             hotword_weight=hotword_weight,
         )
-        decoded_beams_list: List[List[OutputBeamMPSafe]] = pool.map(p_decode, logits_list)
+        decoded_beams_list: List[List[OutputBeamMPSafe]] = valid_pool.map(p_decode, logits_list)
         return decoded_beams_list
 
     def decode(
@@ -730,7 +730,7 @@ class BeamSearchDecoderCTC:
             hotwords=hotwords,
             hotword_weight=hotword_weight,
         )
-        decoded_text_list: List[str] = pool.map(p_decode, logits_list)
+        decoded_text_list: List[str] = valid_pool.map(p_decode, logits_list)
         return decoded_text_list
 
     def save_to_dir(self, filepath: str) -> None:

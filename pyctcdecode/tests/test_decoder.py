@@ -20,6 +20,7 @@ from ..decoder import (
     build_ctcdecoder,
 )
 from ..language_model import LanguageModel, MultiLanguageModel
+from multiprocessing.context import SpawnContext
 from .helpers import TempfileTestCase
 
 
@@ -198,10 +199,19 @@ TEST_UNIGRAMS = ["bugs", "bunny"]
 
 # Replacement for `multiprocessing.Pool` to get reliable tests that can't crash.
 class MockPool:
-    @staticmethod
-    def map(func, list_items):
+    def __init__(self, ctx):
+        self._ctx = ctx
+        self.map_has_run = False
+
+    def map(self, func, list_items):
         """Map."""
+        self.map_has_run = True
         return [func(e) for e in list_items]
+
+
+# A fake context to use with the mock pool
+class MockContext:
+    """Does nothing."""
 
 
 class TestDecoder(unittest.TestCase):
@@ -264,10 +274,19 @@ class TestDecoder(unittest.TestCase):
 
     def test_decode_batch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
-        pool = MockPool()
+        pool = MockPool(MockContext())
         text_list = decoder.decode_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = ["bugs bunny"] * 5
         self.assertListEqual(expected_text_list, text_list)
+        self.assertTrue(pool.map_has_run)
+
+        text_list = decoder.decode_batch(None, [TEST_LOGITS] * 5)
+        self.assertListEqual(expected_text_list, text_list)
+
+        spawn_pool = MockPool(SpawnContext())
+        text_list = decoder.decode_batch(spawn_pool, [TEST_LOGITS] * 5)
+        self.assertListEqual(expected_text_list, text_list)
+        self.assertFalse(spawn_pool.map_has_run)
 
     def test_logit_shape_mismatch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS)
@@ -277,7 +296,7 @@ class TestDecoder(unittest.TestCase):
 
     def test_decode_beams_batch(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH, TEST_UNIGRAMS)
-        pool = MockPool()
+        pool = MockPool(MockContext())
         text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
             [
@@ -322,6 +341,15 @@ class TestDecoder(unittest.TestCase):
             ],
         ]
         self.assertListEqual(expected_text_list, text_list)
+        self.assertTrue(pool.map_has_run)
+
+        text_list = decoder.decode_beams_batch(None, [TEST_LOGITS] * 5)
+        self.assertListEqual(expected_text_list, text_list)
+
+        spawn_pool = MockPool(SpawnContext())
+        text_list = decoder.decode_beams_batch(spawn_pool, [TEST_LOGITS] * 5)
+        self.assertListEqual(expected_text_list, text_list)
+        self.assertFalse(spawn_pool.map_has_run)
 
     def test_multi_lm(self):
         alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
