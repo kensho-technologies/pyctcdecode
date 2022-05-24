@@ -8,6 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+.venv/
 build/
 develop-eggs/
 dist/
@@ -19,6 +20,7 @@ lib64/
 parts/
 sdist/
 var/
+venv/
 wheels/
 *.egg-info/
 .installed.cfg
@@ -43,3 +45,6 @@ coverage.xml
 
 # misc OS
 .DS_Store
+
+# IDE files and directories
+.idea

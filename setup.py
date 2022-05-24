@@ -2,6 +2,7 @@
 import codecs
 import logging
 import os
+import platform
 import re
 
 from setuptools import find_packages, setup  # type: ignore
@@ -15,8 +16,17 @@ def read_file(filename: str) -> str:
     # intentionally *not* adding an encoding option to open, see here:
     # https://github.com/pypa/virtualenv/issues/201#issuecomment-3145690
     here = os.path.abspath(os.path.dirname(__file__))
-    with codecs.open(os.path.join(here, "pyctcdecode", filename), "r") as f:
-        return f.read()
+    if platform.platform().startswith("Windows"):
+        # pip local install fails in windows command prompt due to character encoding issue
+        # without the encoding argument
+        with codecs.open(os.path.join(here, "pyctcdecode", filename), "r", encoding="UTF-8") as f:
+            file_text = f.read()
+
+    else:
+        with codecs.open(os.path.join(here, "pyctcdecode", filename), "r") as f:
+            file_text = f.read()
+
+    return file_text
 
 
 def find_version() -> str:
