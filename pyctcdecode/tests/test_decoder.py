@@ -200,6 +200,7 @@ TEST_UNIGRAMS = ["bugs", "bunny"]
 # Replacement for `multiprocessing.Pool` to get reliable tests that can't crash.
 class MockPool:
     def __init__(self, ctx):
+        """Fake pool to be able to run map."""
         self._ctx = ctx
         self.map_has_run = False
 
