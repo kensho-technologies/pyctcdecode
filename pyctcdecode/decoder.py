@@ -5,6 +5,8 @@ import functools
 import heapq
 import logging
 import math
+import multiprocessing as mp
+from multiprocessing.pool import Pool
 import os
 from pathlib import Path
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
@@ -62,6 +64,13 @@ OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
 EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
+
+
+def _get_valid_pool(pool: Optional[Pool]) -> Optional[Pool]:
+    """Return the pool if the pool is appropriate for multiprocessing."""
+    if pool is None or isinstance(pool._ctx, mp.context.SpawnContext):  # pylint: disable=W0212
+        return None
+    return pool
 
 
 def _normalize_whitespace(text: str) -> str:
@@ -216,7 +225,7 @@ class BeamSearchDecoderCTC:
         lm_score_boundary: Optional[bool] = None,
     ) -> None:
         """Reset parameters that don't require re-instantiating the model."""
-        language_model = BeamSearchDecoderCTC.model_container[self._model_key]
+        language_model = self._language_model
         if alpha is not None:
             language_model.alpha = alpha  # type: ignore
         if beta is not None:
@@ -235,6 +244,11 @@ class BeamSearchDecoderCTC:
         """Manual cleanup of models in class variable."""
         if self._model_key in BeamSearchDecoderCTC.model_container:
             del BeamSearchDecoderCTC.model_container[self._model_key]
+
+    @property
+    def _language_model(self) -> Optional[AbstractLanguageModel]:
+        """Retrieve the language model."""
+        return BeamSearchDecoderCTC.model_container[self._model_key]
 
     def _check_logits_dimension(
         self,
@@ -262,7 +276,7 @@ class BeamSearchDecoderCTC:
     ) -> List[LMBeam]:
         """Update score by averaging logit_score and lm_score."""
         # get language model and see if exists
-        language_model = BeamSearchDecoderCTC.model_container[self._model_key]
+        language_model = self._language_model
         # if no language model available then return raw score + hotwords as lm score
         if language_model is None:
             new_beams = []
@@ -342,7 +356,7 @@ class BeamSearchDecoderCTC:
         """Perform beam search decoding."""
         # local dictionaries to cache scores during decoding
         # we can pass in an input start state to keep the decoder stateful and working on realtime
-        language_model = BeamSearchDecoderCTC.model_container[self._model_key]
+        language_model = self._language_model
         if lm_start_state is None and language_model is not None:
             cached_lm_scores: Dict[str, Tuple[float, float, LMState]] = {
                 "": (0.0, 0.0, language_model.get_start_state())
@@ -575,7 +589,7 @@ class BeamSearchDecoderCTC:
 
     def decode_beams_batch(
         self,
-        pool: Any,
+        pool: Optional[Pool],
         logits_list: List[np.ndarray],  # type: ignore [type-arg]
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
@@ -584,7 +598,10 @@ class BeamSearchDecoderCTC:
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
     ) -> List[List[OutputBeamMPSafe]]:
-        """Use multi processing pool to batch decode input logits.
+        """Use multiprocessing pool to batch decode input logits.
+
+        Note that multiprocessing here does not work for a spawn context, so in that case
+        or with no pool, just runs a loop in a single process.
 
         Args:
             pool: multiprocessing pool for parallel execution
@@ -599,6 +616,21 @@ class BeamSearchDecoderCTC:
         Returns:
             List of list of beams of type OUTPUT_BEAM_MP_SAFE with various meta information
         """
+        valid_pool = _get_valid_pool(pool)
+        if valid_pool is None:
+            return [
+                self._decode_beams_mp_safe(
+                    logits,
+                    beam_width=beam_width,
+                    beam_prune_logp=beam_prune_logp,
+                    token_min_logp=token_min_logp,
+                    hotwords=hotwords,
+                    prune_history=prune_history,
+                    hotword_weight=hotword_weight,
+                )
+                for logits in logits_list
+            ]
+
         for logits in logits_list:
             self._check_logits_dimension(logits)
         p_decode = functools.partial(
@@ -651,7 +683,7 @@ class BeamSearchDecoderCTC:
 
     def decode_batch(
         self,
-        pool: Any,
+        pool: Optional[Pool],
         logits_list: List[np.ndarray],  # type: ignore [type-arg]
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
@@ -659,7 +691,10 @@ class BeamSearchDecoderCTC:
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
     ) -> List[str]:
-        """Use multi processing pool to batch decode input logits.
+        """Use multiprocessing pool to batch decode input logits.
+
+        Note that multiprocessing here does not work for a spawn context, so in that case
+        or with no pool, just runs a loop in a single process.
 
         Args:
             pool: multiprocessing pool for parallel execution
@@ -673,6 +708,20 @@ class BeamSearchDecoderCTC:
         Returns:
             The decoded texts (list of str)
         """
+        valid_pool = _get_valid_pool(pool)
+        if valid_pool is None:
+            return [
+                self.decode(
+                    logits,
+                    beam_width=beam_width,
+                    beam_prune_logp=beam_prune_logp,
+                    token_min_logp=token_min_logp,
+                    hotwords=hotwords,
+                    hotword_weight=hotword_weight,
+                )
+                for logits in logits_list
+            ]
+
         p_decode = functools.partial(
             self.decode,
             beam_width=beam_width,
@@ -690,7 +739,7 @@ class BeamSearchDecoderCTC:
         with open(alphabet_path, "w") as fi:
             fi.write(self._alphabet.dumps())
 
-        lm = BeamSearchDecoderCTC.model_container[self._model_key]
+        lm = self._language_model
         if lm is None:
             logger.info("decoder has no language model.")
         else:
