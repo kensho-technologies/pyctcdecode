@@ -69,7 +69,7 @@ EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 def _get_valid_pool(pool: Optional[Pool]) -> Optional[Pool]:
     """Return the pool if the pool is appropriate for multiprocessing."""
     if pool is None or isinstance(
-        pool._ctx, mp.context.SpawnContext  # pylint: disable=W0212  # type: ignore [attr-defined]
+        pool._ctx, mp.context.SpawnContext  # type: ignore [attr-defined] # pylint: disable=W0212
     ):
         return None
     return pool
