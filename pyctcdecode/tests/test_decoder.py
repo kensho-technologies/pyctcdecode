@@ -1,13 +1,13 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 import json
 import math
+from multiprocessing.context import SpawnContext
 import os
 import unittest
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 import kenlm  # type: ignore
-from multiprocessing.context import SpawnContext
 import numpy as np
 
 from ..alphabet import BPE_TOKEN, UNK_BPE_TOKEN, Alphabet
