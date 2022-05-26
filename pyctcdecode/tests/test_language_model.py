@@ -8,8 +8,8 @@ from hypothesis import strategies as st
 import kenlm
 from pygtrie import CharTrie
 
-from pyctcdecode.language_model import HotwordScorer, LanguageModel, MultiLanguageModel
-from pyctcdecode.tests.helpers import TempfileTestCase
+from ..language_model import HotwordScorer, LanguageModel, MultiLanguageModel
+from .helpers import TempfileTestCase
 
 
 CUR_PATH = os.path.dirname(os.path.abspath(__file__))
