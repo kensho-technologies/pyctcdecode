@@ -28,6 +28,7 @@ from .constants import (
 )
 from .language_model import (
     AbstractLanguageModel,
+    AbstractLMState,
     HotwordScorer,
     LanguageModel,
     load_unigram_set_from_arpa,
@@ -53,11 +54,10 @@ WordFrames = Tuple[str, Frames]
 Beam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float]
 # same as BEAMS but with current lm score that will be discarded again after sorting
 LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
-# lm state supports single and multi language model
-LMState = Optional[Union["kenlm.State", List["kenlm.State"]]]
+
 # for output beams we return the text, the scores, the lm state and the word frame indices
 # text, last_lm_state, text_frames, logit_score, lm_score
-OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
+OutputBeam = Tuple[str, Optional[AbstractLMState], List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
 
@@ -272,7 +272,7 @@ class BeamSearchDecoderCTC:
         self,
         beams: List[Beam],
         hotword_scorer: HotwordScorer,
-        cached_lm_scores: Dict[str, Tuple[float, float, LMState]],
+        cached_lm_scores: Dict[str, Tuple[float, float, AbstractLMState]],
         cached_partial_token_scores: Dict[str, float],
         is_eos: bool = False,
     ) -> List[LMBeam]:
@@ -353,18 +353,21 @@ class BeamSearchDecoderCTC:
         token_min_logp: float,
         prune_history: bool,
         hotword_scorer: HotwordScorer,
-        lm_start_state: LMState = None,
+        lm_start_state: Optional[AbstractLMState] = None,
     ) -> List[OutputBeam]:
         """Perform beam search decoding."""
         # local dictionaries to cache scores during decoding
         # we can pass in an input start state to keep the decoder stateful and working on realtime
         language_model = self._language_model
-        if lm_start_state is None and language_model is not None:
-            cached_lm_scores: Dict[str, Tuple[float, float, LMState]] = {
-                "": (0.0, 0.0, language_model.get_start_state())
-            }
+        if language_model is None:
+            cached_lm_scores: Dict[str, Tuple[float, float, AbstractLMState]] = {}
         else:
-            cached_lm_scores = {"": (0.0, 0.0, lm_start_state)}
+            if lm_start_state is None:
+                start_state = language_model.get_start_state()
+            else:
+                start_state = lm_start_state
+            cached_lm_scores = {"": (0.0, 0.0, start_state)}
+
         cached_p_lm_scores: Dict[str, float] = {}
         # start with single beam to expand on
         beams = [EMPTY_START_BEAM]
@@ -524,7 +527,7 @@ class BeamSearchDecoderCTC:
         prune_history: bool = DEFAULT_PRUNE_BEAMS,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
-        lm_start_state: LMState = None,
+        lm_start_state: Optional[AbstractLMState] = None,
     ) -> List[OutputBeam]:
         """Convert input token logit matrix to decoded beams including meta information.
 
@@ -582,7 +585,7 @@ class BeamSearchDecoderCTC:
             hotwords=hotwords,
             hotword_weight=hotword_weight,
         )
-        # remove kenlm state to allow multiprocessing
+        # remove state to allow multiprocessing
         decoded_beams_mp_safe = [
             (text, frames_list, logit_score, lm_score)
             for text, _, frames_list, logit_score, lm_score in decoded_beams
@@ -655,7 +658,7 @@ class BeamSearchDecoderCTC:
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
-        lm_start_state: LMState = None,
+        lm_start_state: Optional[AbstractLMState] = None,
     ) -> str:
         """Convert input token logit matrix to decoded text.
 

@@ -7,7 +7,7 @@ import logging
 import os
 import re
 import shutil
-from typing import Any, Collection, Dict, Iterable, List, Optional, Pattern, Set, Tuple, cast
+from typing import Any, Collection, Dict, Iterable, Optional, Pattern, Sequence, Set, Tuple, cast
 
 import numpy as np  # type: ignore
 from pygtrie import CharTrie  # type: ignore
@@ -32,6 +32,32 @@ except ImportError:
         "kenlm python bindings are not installed. Most likely you want to install it using: "
         "pip install https://github.com/kpu/kenlm/archive/master.zip"
     )
+
+
+class AbstractLMState(abc.ABC):
+    """Abstract container for state information."""
+
+
+class KenlmState(AbstractLMState):
+    def __init__(self, state: "kenlm.State") -> None:
+        """State for a kenlm language model."""
+        self._state = state
+
+    @property
+    def state(self) -> "kenlm.State":
+        """Get the raw state object."""
+        return self._state
+
+
+class MultiLanguageModelState(AbstractLMState):
+    def __init__(self, states: Sequence[AbstractLMState]) -> None:
+        """State for a multilanguage model."""
+        self._states = states
+
+    @property
+    def states(self) -> Sequence[AbstractLMState]:
+        """Access the state objects."""
+        return self._states
 
 
 def load_unigram_set_from_arpa(arpa_path: str) -> Set[str]:
@@ -166,7 +192,7 @@ class AbstractLanguageModel(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_start_state(self) -> List["kenlm.State"]:
+    def get_start_state(self) -> AbstractLMState:
         """Get initial lm state."""
         raise NotImplementedError()
 
@@ -177,8 +203,8 @@ class AbstractLanguageModel(abc.ABC):
 
     @abc.abstractmethod
     def score(
-        self, prev_state: "kenlm.State", word: str, is_last_word: bool = False
-    ) -> Tuple[float, "kenlm.State"]:
+        self, prev_state: AbstractLMState, word: str, is_last_word: bool = False
+    ) -> Tuple[float, AbstractLMState]:
         """Score word conditional on previous lm state."""
         raise NotImplementedError()
 
@@ -237,16 +263,16 @@ class LanguageModel(AbstractLanguageModel):
     @property
     def order(self) -> int:
         """Get the order of the n-gram language model."""
-        return cast(int, (self._kenlm_model.order))
+        return cast(int, self._kenlm_model.order)
 
-    def get_start_state(self) -> "kenlm.State":
+    def get_start_state(self) -> KenlmState:
         """Get initial lm state."""
         start_state = _get_empty_lm_state()
         if self.score_boundary:
             self._kenlm_model.BeginSentenceWrite(start_state)
         else:
             self._kenlm_model.NullContextWrite(start_state)
-        return start_state
+        return KenlmState(start_state)
 
     def _get_raw_end_score(self, start_state: "kenlm.State") -> float:
         """Calculate final lm score."""
@@ -270,11 +296,15 @@ class LanguageModel(AbstractLanguageModel):
         return unk_score
 
     def score(
-        self, prev_state: "kenlm.State", word: str, is_last_word: bool = False
-    ) -> Tuple[float, "kenlm.State"]:
+        self, prev_state: AbstractLMState, word: str, is_last_word: bool = False
+    ) -> Tuple[float, KenlmState]:
         """Score word conditional on start state."""
+        if not isinstance(prev_state, KenlmState):
+            raise AssertionError(
+                f"Wrong input state type found. Expected KenlmState, got {type(prev_state)}"
+            )
         end_state = _get_empty_lm_state()
-        lm_score = self._kenlm_model.BaseScore(prev_state, word, end_state)
+        lm_score = self._kenlm_model.BaseScore(prev_state.state, word, end_state)
         # override UNK prob. use unigram set if we have because it's faster
         if (
             len(self._unigram_set) > 0
@@ -287,7 +317,7 @@ class LanguageModel(AbstractLanguageModel):
             # note that we want to return the unmodified end_state to keep extension capabilities
             lm_score = lm_score + self._get_raw_end_score(end_state)
         lm_score = self.alpha * lm_score * LOG_BASE_CHANGE_FACTOR + self.beta
-        return lm_score, end_state
+        return lm_score, KenlmState(end_state)
 
     # Serialization stuff below
     # Language models are annoying to serialize because the kenlm model MUST be an actual file
@@ -381,7 +411,7 @@ class LanguageModel(AbstractLanguageModel):
 
 
 class MultiLanguageModel(AbstractLanguageModel):
-    def __init__(self, language_models: List[LanguageModel]) -> None:
+    def __init__(self, language_models: Sequence[AbstractLanguageModel]) -> None:
         """Container for multiple language models.
 
         Args:
@@ -396,9 +426,9 @@ class MultiLanguageModel(AbstractLanguageModel):
         """Get the maximum order of the contained n-gram language model."""
         return max([lm.order for lm in self._language_models])
 
-    def get_start_state(self) -> List["kenlm.State"]:
+    def get_start_state(self) -> MultiLanguageModelState:
         """Get initial lm state."""
-        return [lm.get_start_state() for lm in self._language_models]
+        return MultiLanguageModelState([lm.get_start_state() for lm in self._language_models])
 
     def score_partial_token(self, partial_token: str) -> float:
         """Get partial token score."""
@@ -407,14 +437,24 @@ class MultiLanguageModel(AbstractLanguageModel):
         )
 
     def score(
-        self, prev_state: List["kenlm.State"], word: str, is_last_word: bool = False
-    ) -> Tuple[float, List["kenlm.State"]]:
+        self, prev_state: AbstractLMState, word: str, is_last_word: bool = False
+    ) -> Tuple[float, MultiLanguageModelState]:
         """Score word conditional on previous lm state."""
+        if not isinstance(prev_state, MultiLanguageModelState):
+            raise AssertionError(
+                f"Wrong input state type found. Expected MultiLanguageModelState, got "
+                f"{type(prev_state)}"
+            )
+        if len(prev_state.states) != len(self._language_models):
+            raise AssertionError(
+                f"Number of states ({len(prev_state.states)}) does not match number of language "
+                f"models ({len(self._language_models)})."
+            )
         score = 0.0
         end_state = []
-        for lm_prev_state, lm in zip(prev_state, self._language_models):
+        for lm_prev_state, lm in zip(prev_state.states, self._language_models):
             lm_score, lm_end_state = lm.score(lm_prev_state, word, is_last_word=is_last_word)
             score += lm_score
             end_state.append(lm_end_state)
         score = score / len(self._language_models)
-        return score, end_state
+        return score, MultiLanguageModelState(end_state)
