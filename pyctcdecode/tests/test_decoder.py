@@ -694,8 +694,8 @@ class TestSerialization(TempfileTestCase):
         if new_hub_structure:
             models_dir = f"models{REPO_ID_SEPARATOR}{dummy_hub_name_with_separator}"
             os.makedirs(f"{self.temp_dir}/{models_dir}/refs")
-            with open(f"{self.temp_dir}/{models_dir}/refs/main", "w") as f:
-                f.write(hash_value)
+            with open(f"{self.temp_dir}/{models_dir}/refs/main", "w") as ref_file:
+                ref_file.write(hash_value)
 
 
         # save decoder
