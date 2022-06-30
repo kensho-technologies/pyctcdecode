@@ -658,7 +658,13 @@ class TestSerialization(TempfileTestCase):
         self.assertEqual(old_num_models + 1, self._count_num_language_models())
 
     def test_load_from_hub_offline(self):
-        from huggingface_hub.snapshot_download import REPO_ID_SEPARATOR
+        import huggingface_hub
+        if huggingface_hub.__version__ >= "0.8.0":
+            from huggingface_hub.constants import REPO_ID_SEPARATOR
+            new_hub_structure = True
+        else:
+            from huggingface_hub.snapshot_download import REPO_ID_SEPARATOR
+            new_hub_structure = False
 
         # create language model and decode text
         alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
@@ -673,11 +679,24 @@ class TestSerialization(TempfileTestCase):
         # is created under the hood in `.load_from_hf_hub`. To mock a cached
         # download we have to do it manually here.
         dummy_hub_name = "kensho/dummy_test"
-        dummy_cached_subdir = (
-            dummy_hub_name.replace("/", REPO_ID_SEPARATOR) + ".main.123456aoeusnth"
-        )
+        dummy_hub_name_with_separator = dummy_hub_name.replace("/", REPO_ID_SEPARATOR)
+        hash_value = "123456aoeusnth"
+        if new_hub_structure:
+            dummy_cached_subdir = (
+                f"models{REPO_ID_SEPARATOR}{dummy_hub_name_with_separator}/snapshots/{hash_value}"
+            )
+        else:
+            dummy_cached_subdir = (
+                f"{dummy_hub_name_with_separator}.main.{hash_value}"
+            )
         dummy_cached_dir = os.path.join(self.temp_dir, dummy_cached_subdir)
         os.makedirs(dummy_cached_dir)
+        if new_hub_structure:
+            models_dir = f"models{REPO_ID_SEPARATOR}{dummy_hub_name_with_separator}"
+            os.makedirs(f"{self.temp_dir}/{models_dir}/refs")
+            with open(f"{self.temp_dir}/{models_dir}/refs/main", "w") as f:
+                f.write(hash_value)
+
 
         # save decoder
         decoder.save_to_dir(os.path.join(self.temp_dir, dummy_cached_dir))
