@@ -689,7 +689,7 @@ class TestSerialization(TempfileTestCase):
                 f"models{REPO_ID_SEPARATOR}{dummy_hub_name_with_separator}/snapshots/{hash_value}"
             )
         else:
-            dummy_cached_subdir = (f"{dummy_hub_name_with_separator}.main.{hash_value}")
+            dummy_cached_subdir = f"{dummy_hub_name_with_separator}.main.{hash_value}"
         dummy_cached_dir = os.path.join(self.temp_dir, dummy_cached_subdir)
         os.makedirs(dummy_cached_dir)
         if new_hub_structure:
