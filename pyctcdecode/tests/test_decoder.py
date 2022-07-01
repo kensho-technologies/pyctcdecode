@@ -659,11 +659,14 @@ class TestSerialization(TempfileTestCase):
 
     def test_load_from_hub_offline(self):
         import huggingface_hub
+
         if huggingface_hub.__version__ >= "0.8.0":
             from huggingface_hub.constants import REPO_ID_SEPARATOR
+
             new_hub_structure = True
         else:
             from huggingface_hub.snapshot_download import REPO_ID_SEPARATOR
+
             new_hub_structure = False
 
         # create language model and decode text
@@ -686,9 +689,7 @@ class TestSerialization(TempfileTestCase):
                 f"models{REPO_ID_SEPARATOR}{dummy_hub_name_with_separator}/snapshots/{hash_value}"
             )
         else:
-            dummy_cached_subdir = (
-                f"{dummy_hub_name_with_separator}.main.{hash_value}"
-            )
+            dummy_cached_subdir = (f"{dummy_hub_name_with_separator}.main.{hash_value}")
         dummy_cached_dir = os.path.join(self.temp_dir, dummy_cached_subdir)
         os.makedirs(dummy_cached_dir)
         if new_hub_structure:
@@ -696,7 +697,6 @@ class TestSerialization(TempfileTestCase):
             os.makedirs(f"{self.temp_dir}/{models_dir}/refs")
             with open(f"{self.temp_dir}/{models_dir}/refs/main", "w") as ref_file:
                 ref_file.write(hash_value)
-
 
         # save decoder
         decoder.save_to_dir(os.path.join(self.temp_dir, dummy_cached_dir))
