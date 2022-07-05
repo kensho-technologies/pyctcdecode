@@ -509,9 +509,9 @@ class BeamSearchDecoderCTC:
                 cached_lm_scores[text][-1] if text in cached_lm_scores else None,
                 list(zip(text.split(), text_frames)),
                 logit_score,
-                lm_score,  # same as logit_score if lm is missing
+                combined_score,  # same as logit_score if lm is missing
             )
-            for text, _, _, _, text_frames, _, logit_score, lm_score in trimmed_beams
+            for text, _, _, _, text_frames, _, logit_score, combined_score in trimmed_beams
         ]
         return output_beams
 
