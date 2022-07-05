@@ -819,7 +819,9 @@ class BeamSearchDecoderCTC:
                 "See https://pypi.org/project/huggingface-hub/ for installation."
             )
 
-        cached_directory = snapshot_download(model_id, cache_dir=cache_dir, **kwargs)
+        cached_directory = snapshot_download(  # pylint: disable=not-callable
+            model_id, cache_dir=cache_dir, **kwargs
+        )
 
         return cls.load_from_dir(cached_directory)
 
