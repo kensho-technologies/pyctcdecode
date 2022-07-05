@@ -123,6 +123,7 @@ Additional features such as BPE vocabulary, as well as examples of `pyctcdecode`
 - [NeMo](https://github.com/NVIDIA/NeMo) and [Wav2Vec2](https://huggingface.co/transformers/model_doc/wav2vec2.html)
 - [CTC blog post](https://distill.pub/2017/ctc/)
 - [Beam search](https://www.youtube.com/watch?v=RLWuzLLSIgw) by Andrew Ng
+- Talks on beam search and pyctcdecode ([Longer talk](https://www.youtube.com/watch?v=CDuvVL0z_xk) and [Shorter talk](https://www.youtube.com/watch?v=mp7fHMTnK9A)) 
 
 ### License:
 
