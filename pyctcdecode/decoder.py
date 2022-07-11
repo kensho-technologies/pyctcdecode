@@ -68,9 +68,14 @@ EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 
 def _get_valid_pool(pool: Optional[Pool]) -> Optional[Pool]:
     """Return the pool if the pool is appropriate for multiprocessing."""
-    if pool is None or isinstance(
+    if pool is not None and isinstance(
         pool._ctx, mp.context.SpawnContext  # type: ignore [attr-defined] # pylint: disable=W0212
     ):
+        logger.warning(
+            "Specified pool object has a spawn context, which is not currently supported. "
+            "See https://github.com/kensho-technologies/pyctcdecode/issues/65."
+            "\nFalling back to sequential decoding."
+        )
         return None
     return pool
 
