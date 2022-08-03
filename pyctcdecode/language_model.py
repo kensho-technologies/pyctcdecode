@@ -373,7 +373,7 @@ class LanguageModel(AbstractLanguageModel):
                 f"but found {json_attrs.keys()}"
             )
 
-        with open(filenames["unigrams"], "r") as fi:
+        with open(filenames["unigrams"], "r",encoding="utf-8") as fi:
             unigrams = fi.read().splitlines()
 
         kenlm_model = kenlm.Model(filenames["kenlm"])
