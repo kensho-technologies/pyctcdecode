@@ -665,7 +665,9 @@ class TestSerialization(TempfileTestCase):
 
             new_hub_structure = True
         else:
-            from huggingface_hub.snapshot_download import REPO_ID_SEPARATOR
+            from huggingface_hub.snapshot_download import (  # pylint: disable=import-error
+                REPO_ID_SEPARATOR,
+            )
 
             new_hub_structure = False
 
