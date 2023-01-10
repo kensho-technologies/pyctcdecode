@@ -316,7 +316,7 @@ class BeamSearchDecoderCTC:
             new_text = _merge_tokens(text, next_word)
             cache_key = (new_text, is_eos)
             if cache_key not in cached_lm_scores:
-                _, prev_raw_lm_score, start_state = cached_lm_scores[cache_key]
+                _, prev_raw_lm_score, start_state = cached_lm_scores[(text, False)]
                 score, end_state = language_model.score(start_state, next_word, is_last_word=is_eos)
                 raw_lm_score = prev_raw_lm_score + score
                 lm_hw_score = raw_lm_score + hotword_scorer.score(new_text)
@@ -512,7 +512,7 @@ class BeamSearchDecoderCTC:
         output_beams = [
             (
                 _normalize_whitespace(text),
-                cached_lm_scores[text][-1] if text in cached_lm_scores else None,
+                cached_lm_scores[(text, True)][-1] if (text, True) in cached_lm_scores else None,
                 list(zip(text.split(), text_frames)),
                 logit_score,
                 combined_score,  # same as logit_score if lm is missing
