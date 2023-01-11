@@ -1,3 +1,5 @@
+# Copyright 2021-present Kensho Technologies, LLC.
+
 [project]
 name = "pyctcdecode"
 version = "0.5.0"
