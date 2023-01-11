@@ -60,6 +60,11 @@ LMState = Optional[Union["kenlm.State", List["kenlm.State"]]]
 OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
+# Key for the languagem model score cache
+# text, is_eos
+LMScoreCacheKey = Tuple[str, bool]
+# LM score with hotword score, raw LM score, LMState
+LMScoreCacheValue = Tuple[float, float, LMState]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
@@ -277,7 +282,7 @@ class BeamSearchDecoderCTC:
         self,
         beams: List[Beam],
         hotword_scorer: HotwordScorer,
-        cached_lm_scores: Dict[Tuple[str, bool], Tuple[float, float, LMState]],
+        cached_lm_scores: Dict[LMScoreCacheKey, LMScoreCacheValue],
         cached_partial_token_scores: Dict[str, float],
         is_eos: bool = False,
     ) -> List[LMBeam]:
@@ -366,7 +371,7 @@ class BeamSearchDecoderCTC:
         # we can pass in an input start state to keep the decoder stateful and working on realtime
         language_model = self._language_model
         if lm_start_state is None and language_model is not None:
-            cached_lm_scores: Dict[Tuple[str, bool], Tuple[float, float, LMState]] = {
+            cached_lm_scores: Dict[LMScoreCacheKey, LMScoreCacheValue] = {
                 ("", False): (0.0, 0.0, language_model.get_start_state())
             }
         else:
