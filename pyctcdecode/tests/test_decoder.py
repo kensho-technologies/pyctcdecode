@@ -660,12 +660,14 @@ class TestSerialization(TempfileTestCase):
     def test_load_from_hub_offline(self):
         import huggingface_hub
 
-        if huggingface_hub.__version__ >= "0.8.0":
+        if tuple(int(x) for x in huggingface_hub.__version__.split(".")[:3]) >= (0, 8, 0):
             from huggingface_hub.constants import REPO_ID_SEPARATOR
 
             new_hub_structure = True
         else:
-            from huggingface_hub.snapshot_download import REPO_ID_SEPARATOR
+            from huggingface_hub.snapshot_download import (  # pylint: disable=import-error
+                REPO_ID_SEPARATOR,
+            )
 
             new_hub_structure = False
 
