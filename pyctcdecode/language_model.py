@@ -193,6 +193,9 @@ class AbstractLanguageModel(abc.ABC):
         """Load a model from a directory."""
         raise NotImplementedError()
 
+    def reset_params(self, **params: Dict[str, Any]) -> None:
+        """Reset some of the parameters in place."""
+
 
 class LanguageModel(AbstractLanguageModel):
     # serializatoin constants
@@ -234,6 +237,30 @@ class LanguageModel(AbstractLanguageModel):
         self.beta = beta
         self.unk_score_offset = unk_score_offset
         self.score_boundary = score_boundary
+
+    def reset_params(self, **params: Dict[str, Any]) -> None:
+        """Reset some of the simple parameters.
+
+        The allowed parameters are [alpha, beta, unk_score_offset, score_boundary]
+
+        Args:
+            params: dict of str to anything
+        """
+        alpha = params.get("alpha")
+        if alpha is not None:
+            self.alpha = alpha
+
+        beta = params.get("beta")
+        if beta is not None:
+            self.beta = beta
+
+        unk_score_offset = params.get("unk_score_offset")
+        if unk_score_offset is not None:
+            self.unk_score_offset = unk_score_offset
+
+        score_boundary = params.get("score_boundary")
+        if score_boundary is not None:
+            self.score_boundary = score_boundary
 
     @property
     def order(self) -> int:

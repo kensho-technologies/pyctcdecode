@@ -237,15 +237,19 @@ class BeamSearchDecoderCTC:
         lm_score_boundary: Optional[bool] = None,
     ) -> None:
         """Reset parameters that don't require re-instantiating the model."""
+        # todo: make more generic to accomodate other language models
         language_model = self._language_model
+        params = {}
         if alpha is not None:
-            language_model.alpha = alpha  # type: ignore
+            params["alpha"] = alpha
         if beta is not None:
-            language_model.beta = beta  # type: ignore
+            params["beta"] = beta
         if unk_score_offset is not None:
-            language_model.unk_score_offset = unk_score_offset  # type: ignore
+            params["unk_score_offset"] = unk_score_offset
         if lm_score_boundary is not None:
-            language_model.score_boundary = lm_score_boundary  # type: ignore
+            params["score_boundary"] = lm_score_boundary
+        language_model.reset_params(**params)
+
 
     @classmethod
     def clear_class_models(cls) -> None:
