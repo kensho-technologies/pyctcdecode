@@ -149,7 +149,8 @@ class HotwordScorer:
             )
 
             # create trie for partial word matches
-            char_trie = CharTrie.fromkeys(hotword_unigrams)
+            length_sorted_unigrams = sorted(hotword_unigrams, key=len)
+            char_trie = CharTrie.fromkeys(length_sorted_unigrams)
         else:
             # make an unmatchable pattern
             match_ptn = re.compile(r"^\b$")
