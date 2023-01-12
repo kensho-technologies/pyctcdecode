@@ -60,7 +60,7 @@ LMState = Optional[Union["kenlm.State", List["kenlm.State"]]]
 OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
-# Key for the languagem model score cache
+# Key for the language model score cache
 # text, is_eos
 LMScoreCacheKey = Tuple[str, bool]
 # LM score with hotword score, raw LM score, LMState
