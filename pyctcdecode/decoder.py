@@ -820,8 +820,7 @@ class BeamSearchDecoderCTC:
         """
         import sys
 
-        python_version = (sys.version_info.major, sys.version_info.minor)
-        if python_version >= (3, 8):
+        if sys.version_info >= (3, 8):
             from importlib.metadata import metadata
         else:
             from importlib_metadata import metadata
