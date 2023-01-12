@@ -60,6 +60,11 @@ LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
 OutputBeam = Tuple[str, Optional[AbstractLMState], List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
+# Key for the language model score cache
+# text, is_eos
+LMScoreCacheKey = Tuple[str, bool]
+# LM score with hotword score, raw LM score, AbstracatLMState
+LMScoreCacheValue = Tuple[float, float, AbstractLMState]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
@@ -68,9 +73,14 @@ EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 
 def _get_valid_pool(pool: Optional[Pool]) -> Optional[Pool]:
     """Return the pool if the pool is appropriate for multiprocessing."""
-    if pool is None or isinstance(
+    if pool is not None and isinstance(
         pool._ctx, mp.context.SpawnContext  # type: ignore [attr-defined] # pylint: disable=W0212
     ):
+        logger.warning(
+            "Specified pool object has a spawn context, which is not currently supported. "
+            "See https://github.com/kensho-technologies/pyctcdecode/issues/65."
+            "\nFalling back to sequential decoding."
+        )
         return None
     return pool
 
@@ -272,7 +282,7 @@ class BeamSearchDecoderCTC:
         self,
         beams: List[Beam],
         hotword_scorer: HotwordScorer,
-        cached_lm_scores: Dict[str, Tuple[float, float, AbstractLMState]],
+        cached_lm_scores: Dict[LMScoreCacheKey, LMScoreCacheValue],
         cached_partial_token_scores: Dict[str, float],
         is_eos: bool = False,
     ) -> List[LMBeam]:
@@ -309,13 +319,14 @@ class BeamSearchDecoderCTC:
         for text, next_word, word_part, last_char, frame_list, frames, logit_score in beams:
             # fast token merge
             new_text = _merge_tokens(text, next_word)
-            if new_text not in cached_lm_scores:
-                _, prev_raw_lm_score, start_state = cached_lm_scores[text]
+            cache_key = (new_text, is_eos)
+            if cache_key not in cached_lm_scores:
+                _, prev_raw_lm_score, start_state = cached_lm_scores[(text, False)]
                 score, end_state = language_model.score(start_state, next_word, is_last_word=is_eos)
                 raw_lm_score = prev_raw_lm_score + score
                 lm_hw_score = raw_lm_score + hotword_scorer.score(new_text)
-                cached_lm_scores[new_text] = (lm_hw_score, raw_lm_score, end_state)
-            lm_score, _, _ = cached_lm_scores[new_text]
+                cached_lm_scores[cache_key] = (lm_hw_score, raw_lm_score, end_state)
+            lm_score, _, _ = cached_lm_scores[cache_key]
 
             if len(word_part) > 0:
                 if word_part not in cached_partial_token_scores:
@@ -360,14 +371,13 @@ class BeamSearchDecoderCTC:
         # we can pass in an input start state to keep the decoder stateful and working on realtime
         language_model = self._language_model
         if language_model is None:
-            cached_lm_scores: Dict[str, Tuple[float, float, AbstractLMState]] = {}
+            cached_lm_scores: Dict[LMScoreCacheKey, LMScoreCacheValue] = {}
         else:
             if lm_start_state is None:
                 start_state = language_model.get_start_state()
             else:
                 start_state = lm_start_state
-            cached_lm_scores = {"": (0.0, 0.0, start_state)}
-
+            cached_lm_scores = {("", False): (0.0, 0.0, start_state)}
         cached_p_lm_scores: Dict[str, float] = {}
         # start with single beam to expand on
         beams = [EMPTY_START_BEAM]
@@ -509,12 +519,12 @@ class BeamSearchDecoderCTC:
         output_beams = [
             (
                 _normalize_whitespace(text),
-                cached_lm_scores[text][-1] if text in cached_lm_scores else None,
+                cached_lm_scores[(text, True)][-1] if (text, True) in cached_lm_scores else None,
                 list(zip(text.split(), text_frames)),
                 logit_score,
-                lm_score,  # same as logit_score if lm is missing
+                combined_score,  # same as logit_score if lm is missing
             )
-            for text, _, _, _, text_frames, _, logit_score, lm_score in trimmed_beams
+            for text, _, _, _, text_frames, _, logit_score, combined_score in trimmed_beams
         ]
         return output_beams
 
@@ -810,9 +820,15 @@ class BeamSearchDecoderCTC:
         Returns:
             instance of BeamSearchDecoderCTC
         """
-        from . import __package_name__ as LIBRARY_NAME
+        import sys
 
-        cache_dir = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
+        if sys.version_info >= (3, 8):
+            from importlib.metadata import metadata
+        else:
+            from importlib_metadata import metadata
+
+        library_name = metadata("pyctcdecode")["Name"]
+        cache_dir = cache_dir or os.path.join(Path.home(), ".cache", library_name)
 
         try:
             from huggingface_hub import snapshot_download  # type: ignore
@@ -822,7 +838,9 @@ class BeamSearchDecoderCTC:
                 "See https://pypi.org/project/huggingface-hub/ for installation."
             )
 
-        cached_directory = snapshot_download(model_id, cache_dir=cache_dir, **kwargs)
+        cached_directory = snapshot_download(  # pylint: disable=not-callable
+            model_id, cache_dir=cache_dir, **kwargs
+        )
 
         return cls.load_from_dir(cached_directory)
 
