@@ -1,2 +1,3 @@
 graft pyctcdecode/tests/sample_data
+include pyctcdecode/py.typed
 graft tutorials
