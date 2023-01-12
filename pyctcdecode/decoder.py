@@ -818,6 +818,7 @@ class BeamSearchDecoderCTC:
         Returns:
             instance of BeamSearchDecoderCTC
         """
+        from importlib.metadata import distribution
         from . import __package_name__ as LIBRARY_NAME
 
         cache_dir = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
