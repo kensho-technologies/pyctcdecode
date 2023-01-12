@@ -818,10 +818,16 @@ class BeamSearchDecoderCTC:
         Returns:
             instance of BeamSearchDecoderCTC
         """
-        from importlib.metadata import distribution
-        from . import __package_name__ as LIBRARY_NAME
+        import sys
 
-        cache_dir = cache_dir or os.path.join(Path.home(), ".cache", LIBRARY_NAME)
+        python_version = (sys.version_info.major, sys.version_info.minor)
+        if python_version >= (3, 8):
+            from importlib.metadata import metadata
+        else:
+            from importlib_metadata import metadata
+
+        library_name = metadata("pyctcdecode")["Name"]
+        cache_dir = cache_dir or os.path.join(Path.home(), ".cache", library_name)
 
         try:
             from huggingface_hub import snapshot_download  # type: ignore
