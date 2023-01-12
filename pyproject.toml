@@ -1,2 +1,49 @@
+# Copyright 2021-present Kensho Technologies, LLC.
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyctcdecode"
+version = "0.5.0"
+description = "CTC beam search decoder for speech recognition."
+readme = "README.md"
+requires-python = ">=3.7"
+authors =  [
+    {name = "Kensho Technologies, LLC.", email = "pyctcdecode-maintainer@kensho.com"},
+]
+# Apache 2.0
+license = {file = "LICENSE"}
+
+dependencies = [
+    "numpy>=1.15.0,<2.0.0",
+    "pygtrie>=2.1,<3.0",
+    "hypothesis>=6.14,<7",
+]
+
+[project.urls]
+source = "https://github.com/kensho-technologies/pyctcdecode"
+
+[project.optional-dependencies]
+dev = [
+    "bandit",
+    "black",
+    "codecov",
+    "flake8",
+    "huggingface-hub",
+    "isort>=5.0.0,<6",
+    "jupyter",
+    "mypy",
+    "nbconvert",
+    "nbformat",
+    "pydocstyle",
+    "pylint",
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.setuptools]
+packages = ["pyctcdecode"]
+
 [tool.black]
 line-length = 100
