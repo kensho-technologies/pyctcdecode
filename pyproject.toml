@@ -1,4 +1,7 @@
 # Copyright 2021-present Kensho Technologies, LLC.
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyctcdecode"
@@ -17,6 +20,9 @@ dependencies = [
     "pygtrie>=2.1,<3.0",
     "hypothesis>=6.14,<7",
 ]
+
+[project.urls]
+source = "https://github.com/kensho-technologies/pyctcdecode"
 
 [project.optional-dependencies]
 dev = [
