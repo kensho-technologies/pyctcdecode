@@ -60,6 +60,11 @@ LMState = Optional[Union["kenlm.State", List["kenlm.State"]]]
 OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
+# Key for the language model score cache
+# text, is_eos
+LMScoreCacheKey = Tuple[str, bool]
+# LM score with hotword score, raw LM score, LMState
+LMScoreCacheValue = Tuple[float, float, LMState]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
@@ -277,7 +282,7 @@ class BeamSearchDecoderCTC:
         self,
         beams: List[Beam],
         hotword_scorer: HotwordScorer,
-        cached_lm_scores: Dict[str, Tuple[float, float, LMState]],
+        cached_lm_scores: Dict[LMScoreCacheKey, LMScoreCacheValue],
         cached_partial_token_scores: Dict[str, float],
         is_eos: bool = False,
     ) -> List[LMBeam]:
@@ -314,13 +319,14 @@ class BeamSearchDecoderCTC:
         for text, next_word, word_part, last_char, frame_list, frames, logit_score in beams:
             # fast token merge
             new_text = _merge_tokens(text, next_word)
-            if new_text not in cached_lm_scores:
-                _, prev_raw_lm_score, start_state = cached_lm_scores[text]
+            cache_key = (new_text, is_eos)
+            if cache_key not in cached_lm_scores:
+                _, prev_raw_lm_score, start_state = cached_lm_scores[(text, False)]
                 score, end_state = language_model.score(start_state, next_word, is_last_word=is_eos)
                 raw_lm_score = prev_raw_lm_score + score
                 lm_hw_score = raw_lm_score + hotword_scorer.score(new_text)
-                cached_lm_scores[new_text] = (lm_hw_score, raw_lm_score, end_state)
-            lm_score, _, _ = cached_lm_scores[new_text]
+                cached_lm_scores[cache_key] = (lm_hw_score, raw_lm_score, end_state)
+            lm_score, _, _ = cached_lm_scores[cache_key]
 
             if len(word_part) > 0:
                 if word_part not in cached_partial_token_scores:
@@ -365,11 +371,11 @@ class BeamSearchDecoderCTC:
         # we can pass in an input start state to keep the decoder stateful and working on realtime
         language_model = self._language_model
         if lm_start_state is None and language_model is not None:
-            cached_lm_scores: Dict[str, Tuple[float, float, LMState]] = {
-                "": (0.0, 0.0, language_model.get_start_state())
+            cached_lm_scores: Dict[LMScoreCacheKey, LMScoreCacheValue] = {
+                ("", False): (0.0, 0.0, language_model.get_start_state())
             }
         else:
-            cached_lm_scores = {"": (0.0, 0.0, lm_start_state)}
+            cached_lm_scores = {("", False): (0.0, 0.0, lm_start_state)}
         cached_p_lm_scores: Dict[str, float] = {}
         # start with single beam to expand on
         beams = [EMPTY_START_BEAM]
@@ -511,7 +517,7 @@ class BeamSearchDecoderCTC:
         output_beams = [
             (
                 _normalize_whitespace(text),
-                cached_lm_scores[text][-1] if text in cached_lm_scores else None,
+                cached_lm_scores[(text, True)][-1] if (text, True) in cached_lm_scores else None,
                 list(zip(text.split(), text_frames)),
                 logit_score,
                 combined_score,  # same as logit_score if lm is missing
