@@ -74,7 +74,7 @@ EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 
 
 # Generic float type
-if sys.version_info < (3, 9):
+if sys.version_info < (3, 8):
     NpFloat = np.floating
 else:
     NpFloat = np.floating[NBitBase]
