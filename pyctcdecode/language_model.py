@@ -248,18 +248,26 @@ class LanguageModel(AbstractLanguageModel):
         """
         alpha = params.get("alpha")
         if alpha is not None:
+            if not isinstance(alpha, float):
+                raise ValueError(f"alpha must be a float. Got {type(alpha)}.")
             self.alpha = alpha
 
         beta = params.get("beta")
         if beta is not None:
+            if not isinstance(beta, float):
+                raise ValueError(f"beta must be a float. Got {type(beta)}.")
             self.beta = beta
 
         unk_score_offset = params.get("unk_score_offset")
         if unk_score_offset is not None:
+            if not isinstance(unk_score_offset, float):
+                raise ValueError(f"unk_score_offset must be a float. Got {type(unk_score_offset)}.")
             self.unk_score_offset = unk_score_offset
 
         score_boundary = params.get("score_boundary")
         if score_boundary is not None:
+            if not isinstance(score_boundary, bool):
+                raise ValueError(f"score_boundary must be a bool. Got {type(score_boundary)}.")
             self.score_boundary = score_boundary
 
     @property

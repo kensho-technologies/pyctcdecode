@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
 
-import numpy as np  # type: ignore
+import numpy as np
 
 from .alphabet import BPE_TOKEN, Alphabet, verify_alphabet_coverage
 from .constants import (
@@ -239,7 +239,9 @@ class BeamSearchDecoderCTC:
         """Reset parameters that don't require re-instantiating the model."""
         # todo: make more generic to accomodate other language models
         language_model = self._language_model
-        params = {}
+        if language_model is None:
+            return
+        params: Dict[str, Any] = {}
         if alpha is not None:
             params["alpha"] = alpha
         if beta is not None:
@@ -249,7 +251,6 @@ class BeamSearchDecoderCTC:
         if lm_score_boundary is not None:
             params["score_boundary"] = lm_score_boundary
         language_model.reset_params(**params)
-
 
     @classmethod
     def clear_class_models(cls) -> None:
