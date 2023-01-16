@@ -9,6 +9,7 @@ import multiprocessing as mp
 from multiprocessing.pool import Pool
 import os
 from pathlib import Path
+import sys
 from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
@@ -73,7 +74,10 @@ EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 
 
 # Generic float type
-NpFloat = np.floating[NBitBase]
+if sys.version_info < (3, 9):
+    NpFloat = np.floating
+else:
+    NpFloat = np.floating[NBitBase]
 FloatVar = TypeVar("FloatVar", bound=NpFloat)
 Shape = TypeVar("Shape")
 
@@ -830,8 +834,6 @@ class BeamSearchDecoderCTC:
         Returns:
             instance of BeamSearchDecoderCTC
         """
-        import sys
-
         if sys.version_info >= (3, 8):
             from importlib.metadata import metadata
         else:
