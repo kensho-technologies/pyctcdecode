@@ -74,16 +74,16 @@ EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 
 
 # Generic float type
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 9):
     NpFloat = np.floating
 else:
     NpFloat = np.floating[NBitBase]
 FloatVar = TypeVar("FloatVar", bound=NpFloat)
 Shape = TypeVar("Shape")
-if sys.version_info < (3, 8):
-    FloatDtype = DTypeLike
+if sys.version_info < (3, 9):
+    Dtype = DTypeLike
 else:
-    FloatDtype = np.dtype[FloatVar]
+    Dtype = np.dtype
 
 
 def _get_valid_pool(pool: Optional[Pool]) -> Optional[Pool]:
@@ -121,9 +121,9 @@ def _sum_log_scores(s1: float, s2: float) -> float:
 
 
 def _log_softmax(
-    x: np.ndarray[Shape, FloatDtype],
+    x: np.ndarray[Shape, Dtype[FloatVar]],
     axis: Optional[int] = None,
-) -> np.ndarray[Shape, FloatDtype]:
+) -> np.ndarray[Shape, Dtype[FloatVar]]:
     """Logarithm of softmax function, following implementation of scipy.special."""
     x_max = np.amax(x, axis=axis, keepdims=True)
     if x_max.ndim > 0:
@@ -131,11 +131,11 @@ def _log_softmax(
     elif not np.isfinite(x_max):
         x_max = 0  # pylint: disable=R0204
     tmp = x - x_max
-    exp_tmp: np.ndarray[Shape, FloatDtype] = np.exp(tmp)
+    exp_tmp: np.ndarray[Shape, Dtype[FloatVar]] = np.exp(tmp)
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
         s = np.sum(exp_tmp, axis=axis, keepdims=True)
-        out: np.ndarray[Shape, FloatDtype] = np.log(s)
+        out: np.ndarray[Shape, Dtype[FloatVar]] = np.log(s)
     out = tmp - out
     return out
 
