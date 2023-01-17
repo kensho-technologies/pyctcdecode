@@ -1,5 +1,5 @@
 # Copyright 2021-present Kensho Technologies, LLC.
-from __future__ import division
+from __future__ import annotations, division
 
 import functools
 import heapq
@@ -9,9 +9,22 @@ import multiprocessing as mp
 from multiprocessing.pool import Pool
 import os
 from pathlib import Path
-from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, Union
+import sys
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
-import numpy as np  # type: ignore
+import numpy as np
+from numpy.typing import NBitBase, NDArray
 
 from .alphabet import BPE_TOKEN, Alphabet, verify_alphabet_coverage
 from .constants import (
@@ -71,6 +84,19 @@ NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive i
 EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 
 
+# Generic float type
+if sys.version_info < (3, 8):
+    NpFloat = Any
+else:
+    if sys.version_info < (3, 9) and not TYPE_CHECKING:
+        NpFloat = Any
+    else:
+        NpFloat = np.floating[NBitBase]
+
+FloatVar = TypeVar("FloatVar", bound=NpFloat)
+Shape = TypeVar("Shape")
+
+
 def _get_valid_pool(pool: Optional[Pool]) -> Optional[Pool]:
     """Return the pool if the pool is appropriate for multiprocessing."""
     if pool is not None and isinstance(
@@ -106,9 +132,9 @@ def _sum_log_scores(s1: float, s2: float) -> float:
 
 
 def _log_softmax(
-    x: np.ndarray,  # type: ignore [type-arg]
+    x: np.ndarray[Shape, np.dtype[FloatVar]],
     axis: Optional[int] = None,
-) -> np.ndarray:  # type: ignore [type-arg]
+) -> np.ndarray[Shape, np.dtype[FloatVar]]:
     """Logarithm of softmax function, following implementation of scipy.special."""
     x_max = np.amax(x, axis=axis, keepdims=True)
     if x_max.ndim > 0:
@@ -116,11 +142,11 @@ def _log_softmax(
     elif not np.isfinite(x_max):
         x_max = 0  # pylint: disable=R0204
     tmp = x - x_max
-    exp_tmp = np.exp(tmp)
+    exp_tmp: np.ndarray[Shape, np.dtype[FloatVar]] = np.exp(tmp)
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
-        s = np.sum(exp_tmp, axis=axis, keepdims=True)  # type: ignore [arg-type]
-        out: np.ndarray = np.log(s)  # type: ignore [type-arg]
+        s = np.sum(exp_tmp, axis=axis, keepdims=True)
+        out: np.ndarray[Shape, np.dtype[FloatVar]] = np.log(s)
     out = tmp - out
     return out
 
@@ -237,15 +263,20 @@ class BeamSearchDecoderCTC:
         lm_score_boundary: Optional[bool] = None,
     ) -> None:
         """Reset parameters that don't require re-instantiating the model."""
+        # todo: make more generic to accomodate other language models
         language_model = self._language_model
+        if language_model is None:
+            return
+        params: Dict[str, Any] = {}
         if alpha is not None:
-            language_model.alpha = alpha  # type: ignore
+            params["alpha"] = alpha
         if beta is not None:
-            language_model.beta = beta  # type: ignore
+            params["beta"] = beta
         if unk_score_offset is not None:
-            language_model.unk_score_offset = unk_score_offset  # type: ignore
+            params["unk_score_offset"] = unk_score_offset
         if lm_score_boundary is not None:
-            language_model.score_boundary = lm_score_boundary  # type: ignore
+            params["score_boundary"] = lm_score_boundary
+        language_model.reset_params(**params)
 
     @classmethod
     def clear_class_models(cls) -> None:
@@ -264,7 +295,7 @@ class BeamSearchDecoderCTC:
 
     def _check_logits_dimension(
         self,
-        logits: np.ndarray,  # type: ignore [type-arg]
+        logits: NDArray[NpFloat],
     ) -> None:
         """Verify correct shape and dimensions for input logits."""
         if len(logits.shape) != 2:
@@ -358,7 +389,7 @@ class BeamSearchDecoderCTC:
 
     def _decode_logits(
         self,
-        logits: np.ndarray,  # type: ignore [type-arg]
+        logits: NDArray[NpFloat],
         beam_width: int,
         beam_prune_logp: float,
         token_min_logp: float,
@@ -528,7 +559,7 @@ class BeamSearchDecoderCTC:
 
     def decode_beams(
         self,
-        logits: np.ndarray,  # type: ignore [type-arg]
+        logits: NDArray[NpFloat],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -575,7 +606,7 @@ class BeamSearchDecoderCTC:
 
     def _decode_beams_mp_safe(
         self,
-        logits: np.ndarray,  # type: ignore [type-arg]
+        logits: NDArray[NpFloat],
         beam_width: int,
         beam_prune_logp: float,
         token_min_logp: float,
@@ -603,7 +634,7 @@ class BeamSearchDecoderCTC:
     def decode_beams_batch(
         self,
         pool: Optional[Pool],
-        logits_list: List[np.ndarray],  # type: ignore [type-arg]
+        logits_list: NDArray[NpFloat],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -660,7 +691,7 @@ class BeamSearchDecoderCTC:
 
     def decode(
         self,
-        logits: np.ndarray,  # type: ignore [type-arg]
+        logits: NDArray[NpFloat],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -697,7 +728,7 @@ class BeamSearchDecoderCTC:
     def decode_batch(
         self,
         pool: Optional[Pool],
-        logits_list: List[np.ndarray],  # type: ignore [type-arg]
+        logits_list: NDArray[NpFloat],
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -822,8 +853,6 @@ class BeamSearchDecoderCTC:
         Returns:
             instance of BeamSearchDecoderCTC
         """
-        import sys
-
         if sys.version_info >= (3, 8):
             from importlib.metadata import metadata
         else:
