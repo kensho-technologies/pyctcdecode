@@ -310,7 +310,7 @@ class LanguageModel(AbstractLanguageModel):
             json_attrs[attr] = val
         return json_attrs
 
-    def save_to_dir(self, filepath: str) -> None:
+    def save_to_dir(self, filepath: str, unigram_encoding: Optional[str] = None) -> None:
         """Save to a directory."""
         json_attrs = self.serializable_attrs
         json_attr_path = os.path.join(filepath, self._ATTRS_SERIALIZED_FILENAME)
@@ -321,7 +321,7 @@ class LanguageModel(AbstractLanguageModel):
         with open(json_attr_path, "w") as fi:
             json.dump(json_attrs, fi)
 
-        with open(unigrams_path, "w") as fi:
+        with open(unigrams_path, "w", encoding=unigram_encoding) as fi:
             for unigram in sorted(self._unigram_set):
                 fi.write(unigram + "\n")
 
@@ -363,7 +363,9 @@ class LanguageModel(AbstractLanguageModel):
         }
 
     @classmethod
-    def load_from_dir(cls, filepath: str) -> "LanguageModel":
+    def load_from_dir(
+        cls, filepath: str, unigram_encoding: Optional[str] = None
+    ) -> "LanguageModel":
         """Load from a directory."""
         filenames = cls.parse_directory_contents(filepath)
         with open(filenames["json_attrs"], "r") as fi:
@@ -374,7 +376,7 @@ class LanguageModel(AbstractLanguageModel):
                 f"but found {json_attrs.keys()}"
             )
 
-        with open(filenames["unigrams"], "r") as fi:
+        with open(filenames["unigrams"], "r", encoding=unigram_encoding) as fi:
             unigrams = fi.read().splitlines()
 
         kenlm_model = kenlm.Model(filenames["kenlm"])

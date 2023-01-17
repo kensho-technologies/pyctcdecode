@@ -791,7 +791,9 @@ class BeamSearchDecoderCTC:
         return {"alphabet": alphabet_filepath, "language_model": lm_directory}
 
     @classmethod
-    def load_from_dir(cls, filepath: str) -> "BeamSearchDecoderCTC":
+    def load_from_dir(
+        cls, filepath: str, unigram_encoding: Optional[str] = None
+    ) -> "BeamSearchDecoderCTC":
         """Load a decoder from a directory."""
         filenames = cls.parse_directory_contents(filepath)
         with open(filenames["alphabet"], "r") as fi:  # type: ignore
@@ -799,7 +801,9 @@ class BeamSearchDecoderCTC:
         if filenames["language_model"] is None:
             language_model = None
         else:
-            language_model = LanguageModel.load_from_dir(filenames["language_model"])
+            language_model = LanguageModel.load_from_dir(
+                filenames["language_model"], unigram_encoding=unigram_encoding
+            )
         return cls(alphabet, language_model=language_model)
 
     @classmethod
