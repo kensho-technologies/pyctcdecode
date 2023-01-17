@@ -1,5 +1,5 @@
 # Copyright 2021-present Kensho Technologies, LLC.
-from __future__ import division
+from __future__ import annotations, division
 
 import functools
 import heapq
@@ -10,10 +10,21 @@ from multiprocessing.pool import Pool
 import os
 from pathlib import Path
 import sys
-from typing import Any, Collection, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
-from numpy.typing import DTypeLike, NBitBase, NDArray
+from numpy.typing import NBitBase, NDArray
 
 from .alphabet import BPE_TOKEN, Alphabet, verify_alphabet_coverage
 from .constants import (
@@ -74,16 +85,16 @@ EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
 
 
 # Generic float type
-if sys.version_info < (3, 9):
-    NpFloat = np.floating
+if sys.version_info < (3, 8):
+    NpFloat = Any
 else:
-    NpFloat = np.floating[NBitBase]
+    if sys.version_info < (3, 9) and not TYPE_CHECKING:
+        NpFloat = Any
+    else:
+        NpFloat = np.floating[NBitBase]
+
 FloatVar = TypeVar("FloatVar", bound=NpFloat)
 Shape = TypeVar("Shape")
-if sys.version_info < (3, 9):
-    Dtype = DTypeLike
-else:
-    Dtype = np.dtype
 
 
 def _get_valid_pool(pool: Optional[Pool]) -> Optional[Pool]:
@@ -121,9 +132,9 @@ def _sum_log_scores(s1: float, s2: float) -> float:
 
 
 def _log_softmax(
-    x: np.ndarray[Shape, Dtype[FloatVar]],
+    x: np.ndarray[Shape, np.dtype[FloatVar]],
     axis: Optional[int] = None,
-) -> np.ndarray[Shape, Dtype[FloatVar]]:
+) -> np.ndarray[Shape, np.dtype[FloatVar]]:
     """Logarithm of softmax function, following implementation of scipy.special."""
     x_max = np.amax(x, axis=axis, keepdims=True)
     if x_max.ndim > 0:
@@ -131,11 +142,11 @@ def _log_softmax(
     elif not np.isfinite(x_max):
         x_max = 0  # pylint: disable=R0204
     tmp = x - x_max
-    exp_tmp: np.ndarray[Shape, Dtype[FloatVar]] = np.exp(tmp)
+    exp_tmp: np.ndarray[Shape, np.dtype[FloatVar]] = np.exp(tmp)
     # suppress warnings about log of zero
     with np.errstate(divide="ignore"):
         s = np.sum(exp_tmp, axis=axis, keepdims=True)
-        out: np.ndarray[Shape, Dtype[FloatVar]] = np.log(s)
+        out: np.ndarray[Shape, np.dtype[FloatVar]] = np.log(s)
     out = tmp - out
     return out
 
