@@ -325,7 +325,6 @@ class LanguageModel(AbstractLanguageModel):
             for unigram in sorted(self._unigram_set):
                 fi.write(unigram + "\n")
 
-
         logger.info(
             "copying kenlm model from %s to %s. " "This may take some time",
             self._kenlm_model.path,
@@ -364,7 +363,9 @@ class LanguageModel(AbstractLanguageModel):
         }
 
     @classmethod
-    def load_from_dir(cls, filepath: str, unigram_encoding: Optional[str] = None) -> "LanguageModel":
+    def load_from_dir(
+        cls, filepath: str, unigram_encoding: Optional[str] = None
+    ) -> "LanguageModel":
         """Load from a directory."""
         filenames = cls.parse_directory_contents(filepath)
         with open(filenames["json_attrs"], "r") as fi:
