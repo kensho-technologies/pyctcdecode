@@ -105,10 +105,6 @@ class LMBeam:
     lm_score: float
 
 
-# lm state supports single and multi language model
-LMState = Optional[Union["kenlm.State", List["kenlm.State"]]]
-
-
 @dataclasses.dataclass(frozen=True)
 class OutputBeam:
     """Output information."""
