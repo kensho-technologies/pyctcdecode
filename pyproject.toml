@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyctcdecode"
-version = "0.5.0"
+version = "0.6.0"
 description = "CTC beam search decoder for speech recognition."
 readme = "README.md"
 requires-python = ">=3.7"

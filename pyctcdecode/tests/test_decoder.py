@@ -12,7 +12,10 @@ import numpy as np
 
 from ..alphabet import BPE_TOKEN, UNK_BPE_TOKEN, Alphabet
 from ..decoder import (
+    Beam,
     BeamSearchDecoderCTC,
+    LMBeam,
+    OutputBeamMPSafe,
     _merge_beams,
     _normalize_whitespace,
     _prune_history,
@@ -36,19 +39,33 @@ def _random_logits(rows: int, cols: int) -> np.ndarray:
     return logits
 
 
-def _random_libri_logits(N: int) -> np.ndarray:
-    return _random_logits(N, len(LIBRI_LABELS) + 1)
+def _random_libri_logits(n: int) -> np.ndarray:
+    return _random_logits(n, len(LIBRI_LABELS) + 1)
 
 
 def _approx_beams(beams, precis=5):
     """Return beams with scores rounded."""
-    return [tuple(list(b[:-1]) + [round(b[-1], precis)]) for b in beams]
+    return [
+        [
+            b.text,
+            b.next_word,
+            b.partial_word,
+            b.last_char,
+            b.text_frames,
+            b.partial_frames,
+            round(b.logit_score, precis),
+        ] for b in beams
+    ]
 
 
-def _approx_lm_beams(beams, precis=5):
+def _approx_output_beams(beams, precis=5):
     """Return beams with scores rounded."""
     simple_beams = []
-    for text, _, frames, s1, s2 in beams:
+    for beam in beams:
+        text = beam.text
+        frames = beam.text_frames
+        s1 = beam.logit_score
+        s2 = beam.lm_score
         simple_beams.append((text, frames, round(s1, precis), round(s2, precis)))
     return simple_beams
 
@@ -82,41 +99,49 @@ class TestDecoderHelpers(unittest.TestCase):
         self.assertEqual(out, 1.0)
 
     def test_sort_and_trim_beams(self):
-        beams = _sort_and_trim_beams([(-3,), (-9,), (-5,)], 2)
-        expected_beams = [(-3,), (-5,)]
+        input_beams = [
+            LMBeam("Batman and", "", "Robi", "i", [], (-1, -1), -1.0, -3.0),
+            LMBeam("Batman and", "Robin", "", "", [], (-1, -1), -1.0, -9.0),
+            LMBeam("Batman and", "", "Robi", "", [], (-1, -1), -1.0, -5.0),
+        ]
+        beams = _sort_and_trim_beams(input_beams, 2)
+        expected_beams = [
+            LMBeam("Batman and", "", "Robi", "i", [], (-1, -1), -1.0, -3.0),
+            LMBeam("Batman and", "", "Robi", "", [], (-1, -1), -1.0, -5.0),
+        ]
         self.assertListEqual(beams, expected_beams)
 
     def test_merge_beams(self):
         beams = [
-            ("Batman and", "", "Robi", "i", [], (-1, -1), -1),
-            ("Batman and", "Robin", "", "", [], (-1, -1), -1),
-            ("Batman and", "", "Robi", "", [], (-1, -1), -1),
-            ("Batman and", "", "Robi", "", [], (-1, -1), -1),
-            ("Batman &", "", "Robi", "", [], (-1, -1), -1),
+            Beam("Batman and", "", "Robi", "i", [], (-1, -1), -1.0),
+            Beam("Batman and", "Robin", "", "", [], (-1, -1), -1.0),
+            Beam("Batman and", "", "Robi", "", [], (-1, -1), -1.0),
+            Beam("Batman and", "", "Robi", "", [], (-1, -1), -1.0),
+            Beam("Batman &", "", "Robi", "", [], (-1, -1), -1.0),
         ]
         merged_beams = _merge_beams(beams)
         expected_merged_beams = [
-            ("Batman and", "", "Robi", "i", [], (-1, -1), -1),
-            ("Batman and", "Robin", "", "", [], (-1, -1), -1),
-            ("Batman and", "", "Robi", "", [], (-1, -1), math.log(2 * math.exp(-1))),
-            ("Batman &", "", "Robi", "", [], (-1, -1), -1),
+            Beam("Batman and", "", "Robi", "i", [], (-1, -1), -1.0),
+            Beam("Batman and", "Robin", "", "", [], (-1, -1), -1.0),
+            Beam("Batman and", "", "Robi", "", [], (-1, -1), math.log(2 * math.exp(-1))),
+            Beam("Batman &", "", "Robi", "", [], (-1, -1), -1.0),
         ]
         self.assertListEqual(_approx_beams(merged_beams), _approx_beams(expected_merged_beams))
 
     def test_prune_history(self):
         beams = [
-            ("A Gandalf owns", "", "potatoes", "s", [], (-1, -1), -1, -1),
-            ("B Gandalf owns", "", "potatoes", "", [], (-1, -1), -1, -1),
-            ("C Gandalf owns", "", "potatoes", "s", [], (-1, -1), -1, -1),
-            ("D Gandalf sells", "", "yeast", "", [], (-1, -1), -1, -1),
-            ("E Gandalf owns", "", "yeast", "", [], (-1, -1), -1, -1),
+            LMBeam("A Gandalf owns", "", "potatoes", "s", [], (-1, -1), -1.0, -1.0),
+            LMBeam("B Gandalf owns", "", "potatoes", "", [], (-1, -1), -1.0, -1.0),
+            LMBeam("C Gandalf owns", "", "potatoes", "s", [], (-1, -1), -1.0, -1.0),
+            LMBeam("D Gandalf sells", "", "yeast", "", [], (-1, -1), -1.0, -1.0),
+            LMBeam("E Gandalf owns", "", "yeast", "", [], (-1, -1), -1.0, -1.0),
         ]
         pruned_beams = _prune_history(beams, 3)
         expected_pruned_beams = [
-            ("A Gandalf owns", "", "potatoes", "s", [], (-1, -1), -1),
-            ("B Gandalf owns", "", "potatoes", "", [], (-1, -1), -1),
-            ("D Gandalf sells", "", "yeast", "", [], (-1, -1), -1),
-            ("E Gandalf owns", "", "yeast", "", [], (-1, -1), -1),
+            Beam("A Gandalf owns", "", "potatoes", "s", [], (-1, -1), -1.0),
+            Beam("B Gandalf owns", "", "potatoes", "", [], (-1, -1), -1.0),
+            Beam("D Gandalf sells", "", "yeast", "", [], (-1, -1), -1.0),
+            Beam("E Gandalf owns", "", "yeast", "", [], (-1, -1), -1.0),
         ]
         self.assertListEqual(_approx_beams(pruned_beams), _approx_beams(expected_pruned_beams))
 
@@ -301,7 +326,7 @@ class TestDecoder(unittest.TestCase):
         text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
             [
-                (
+                OutputBeamMPSafe(
                     "bugs bunny",
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
@@ -309,7 +334,7 @@ class TestDecoder(unittest.TestCase):
                 )
             ],
             [
-                (
+                OutputBeamMPSafe(
                     "bugs bunny",
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
@@ -317,7 +342,7 @@ class TestDecoder(unittest.TestCase):
                 )
             ],
             [
-                (
+                OutputBeamMPSafe(
                     "bugs bunny",
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
@@ -325,7 +350,7 @@ class TestDecoder(unittest.TestCase):
                 )
             ],
             [
-                (
+                OutputBeamMPSafe(
                     "bugs bunny",
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
@@ -333,7 +358,7 @@ class TestDecoder(unittest.TestCase):
                 )
             ],
             [
-                (
+                OutputBeamMPSafe(
                     "bugs bunny",
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
@@ -367,7 +392,7 @@ class TestDecoder(unittest.TestCase):
 
         beams_1 = decoder.decode_beams(TEST_LOGITS)
         beams_2 = decoder_multi_lm.decode_beams(TEST_LOGITS)
-        self.assertListEqual(_approx_lm_beams(beams_1), _approx_lm_beams(beams_2))
+        self.assertListEqual(_approx_output_beams(beams_1), _approx_output_beams(beams_2))
 
     def test_pruning(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS, KENLM_MODEL_PATH)
@@ -387,7 +412,7 @@ class TestDecoder(unittest.TestCase):
         beams = decoder.decode_beams(logits, prune_history=False)
         beams_pruned = decoder.decode_beams(logits, prune_history=True)
         # make sure top result is the same
-        self.assertEqual(beams[0][0], beams_pruned[0][0])
+        self.assertEqual(beams[0].text, beams_pruned[0].text)
         # history pruning will have a strong effect on diversity here
         self.assertEqual(len(beams), 16)
         self.assertEqual(len(beams_pruned), 1)
@@ -418,8 +443,10 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(text, "bugs bugs")
 
         # if we keep state from the first unigram then the second can be scored correctly
-        text, lm_state, _, _, _ = decoder.decode_beams(bunny_bunny_probs[:4])[0]
-        text += " " + decoder.decode_beams(bunny_bunny_probs[4:], lm_start_state=lm_state)[0][0]
+        top_result = decoder.decode_beams(bunny_bunny_probs[:4])[0]
+        text = top_result.text
+        lm_state = top_result.last_lm_state
+        text += " " + decoder.decode_beams(bunny_bunny_probs[4:], lm_start_state=lm_state)[0].text
         self.assertEqual(text, "bugs bunny")
 
     def test_hotwords(self):
@@ -455,11 +482,11 @@ class TestDecoder(unittest.TestCase):
 
         # the best beam should be bunny bunny
         top_beam = beams[0]
-        self.assertEqual(top_beam[0], "bunny bunny")
+        self.assertEqual(top_beam.text, "bunny bunny")
 
         # the worst beam should be bugs bunny
         worst_beam = beams[-1]
-        self.assertEqual(worst_beam[0], "bugs bunny")
+        self.assertEqual(worst_beam.text, "bugs bunny")
 
         # if we add the language model, that should push bugs bunny to the top, far enough to
         # remove all other beams from the output
@@ -467,7 +494,7 @@ class TestDecoder(unittest.TestCase):
         beams = decoder.decode_beams(TEST_LOGITS)
         self.assertEqual(len(beams), 1)
         top_beam = beams[0]
-        self.assertEqual(top_beam[0], "bugs bunny")
+        self.assertEqual(top_beam.text, "bugs bunny")
 
         # if we don't punish <unk> and don't prune beams by score we recover all but sorted
         # correctly with 'bugs bunny' and the top (bigram LM) and 'bunny bunny' second (unigram LM)
@@ -476,8 +503,8 @@ class TestDecoder(unittest.TestCase):
         decoder = BeamSearchDecoderCTC(alphabet, language_model)
         beams = decoder.decode_beams(TEST_LOGITS, beam_prune_logp=-20.0)
         self.assertEqual(len(beams), 16)
-        self.assertEqual(beams[0][0], "bugs bunny")
-        self.assertEqual(beams[1][0], "bunny bunny")
+        self.assertEqual(beams[0].text, "bugs bunny")
+        self.assertEqual(beams[1].text, "bunny bunny")
 
     def test_frame_annotation(self):
         # build a basic decoder with LM to get all possible combinations
@@ -485,20 +512,20 @@ class TestDecoder(unittest.TestCase):
 
         beams = decoder.decode_beams(TEST_LOGITS)
         top_beam = beams[0]
-        self.assertEqual(top_beam[0], "bunny bunny")
+        self.assertEqual(top_beam.text, "bunny bunny")
         # the frame annotations returned should correspond to the position of the the two words
         # within the logit matrix
         expected_frames = [("bunny", (0, 6)), ("bunny", (7, 13))]
-        self.assertEqual(len(top_beam[2]), len(expected_frames))
-        self.assertListEqual(top_beam[2], expected_frames)
+        self.assertEqual(len(top_beam.text_frames), len(expected_frames))
+        self.assertListEqual(top_beam.text_frames, expected_frames)
 
         worst_beam = beams[-1]
-        self.assertEqual(worst_beam[0], "bugs bunny")
+        self.assertEqual(worst_beam.text, "bugs bunny")
         # the first word is of length 4 now, so check for correct frame annotations (ctc blank
         # character won't be included in the frame count if it's at the end of a word)
         expected_frames = [("bugs", (0, 4)), ("bunny", (7, 13))]
-        self.assertEqual(len(worst_beam[2]), len(expected_frames))
-        self.assertListEqual(worst_beam[2], expected_frames)
+        self.assertEqual(len(worst_beam.text_frames), len(expected_frames))
+        self.assertListEqual(worst_beam.text_frames, expected_frames)
 
         # check if frame annotation works in ctc stretched word
         stretched_chars = [" ", "", "b", "u", "n", "", "n", "n", "y", "", " ", " "]
@@ -506,10 +533,10 @@ class TestDecoder(unittest.TestCase):
         for n, c in enumerate(stretched_chars):
             test_frame_logits[n][SAMPLE_VOCAB.get(c)] = 1
         top_beam = decoder.decode_beams(test_frame_logits)[0]
-        self.assertEqual(top_beam[0], "bunny")
+        self.assertEqual(top_beam.text, "bunny")
         expected_frames = [("bunny", (2, 9))]
-        self.assertEqual(len(top_beam[2]), len(expected_frames))
-        self.assertListEqual(top_beam[2], expected_frames)
+        self.assertEqual(len(top_beam.text_frames), len(expected_frames))
+        self.assertListEqual(top_beam.text_frames, expected_frames)
 
         # test for bpe vocabulary
         bpe_labels = ["▁bugs", "▁bun", "ny", ""]
@@ -520,10 +547,10 @@ class TestDecoder(unittest.TestCase):
         for n, c in enumerate(bpe_ctc_out):
             test_frame_logits[n][bpe_vocab.get(c)] = 1
         top_beam = bpe_decoder.decode_beams(test_frame_logits)[0]
-        self.assertEqual(top_beam[0], "bugs bunny")
+        self.assertEqual(top_beam.text, "bugs bunny")
         expected_frames = [("bugs", (1, 2)), ("bunny", (2, 5))]
-        self.assertEqual(len(top_beam[2]), len(expected_frames))
-        self.assertListEqual(top_beam[2], expected_frames)
+        self.assertEqual(len(top_beam.text_frames), len(expected_frames))
+        self.assertListEqual(top_beam.text_frames, expected_frames)
 
     def test_realistic_alphabet(self):
         decoder = build_ctcdecoder(LIBRI_LABELS)
@@ -535,7 +562,7 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(text, expected_text)
         beams = decoder.decode_beams(LIBRI_LOGITS)
         # check that every word received frame annotations
-        self.assertEqual(len(beams[0][0].split()), len(beams[0][2]))
+        self.assertEqual(len(beams[0].text.split()), len(beams[0].text_frames))
 
         # test with fake BPE vocab, spoof space with with ▁▁
         libri_labels_bpe = [UNK_BPE_TOKEN, BPE_TOKEN] + ["##" + c for c in LIBRI_LABELS[1:]]
@@ -549,7 +576,7 @@ class TestDecoder(unittest.TestCase):
         )
         self.assertEqual(text, expected_text)
         # check that every word received frame annotations
-        self.assertEqual(len(beams[0][0].split()), len(beams[0][2]))
+        self.assertEqual(len(beams[0].text.split()), len(beams[0].text_frames))
 
     @settings(deadline=1000)
     @given(st.builds(_random_libri_logits, st.integers(min_value=0, max_value=20)))
@@ -587,7 +614,8 @@ class TestDecoder(unittest.TestCase):
 
 
 class TestSerialization(TempfileTestCase):
-    def _count_num_language_models(self):
+    @classmethod
+    def _count_num_language_models(cls):
         return sum(
             [1 for model in BeamSearchDecoderCTC.model_container.values() if model is not None]
         )
@@ -599,7 +627,7 @@ class TestSerialization(TempfileTestCase):
             ("README.md", "alphabet.json", "language_model"),  # additional file in dir
         ]
         bad_filenames = [
-            ("language_model"),  # missing alphabet
+            ("language_model",),  # missing alphabet
             ("alphabet.wrong-ext", "language_model"),
         ]
 
