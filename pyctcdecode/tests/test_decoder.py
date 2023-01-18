@@ -54,7 +54,8 @@ def _approx_beams(beams, precis=5):
             b.text_frames,
             b.partial_frames,
             round(b.logit_score, precis),
-        ] for b in beams
+        ]
+        for b in beams
     ]
 
 
