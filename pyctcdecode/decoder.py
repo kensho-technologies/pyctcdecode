@@ -1,6 +1,7 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 from __future__ import annotations, division
 
+import dataclasses
 import functools
 import heapq
 import logging
@@ -61,15 +62,38 @@ except ImportError:
 # store frame information for each word, where frame is the logit index of (start_frame, end_frame)
 Frames = Tuple[int, int]
 WordFrames = Tuple[str, Frames]
+
 # all the beam information we need to keep track of during decoding
-# text, next_word, partial_word, last_char, text_frames, part_frames, logit_score
-Beam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float]
-# same as BEAMS but with current lm score that will be discarded again after sorting
-LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
+@dataclasses.dataclass(frozen=True)
+class Beam:
+    text: str
+    next_word: str
+    partial_word: str
+    last_char: Optional[str]
+    text_frames: List[Frames]
+    partial_frames: Frames
+    logit_score: float
+
+@dataclasses.dataclass(frozen=True)
+class LMBeam:
+    text: str
+    next_word: str
+    partial_word: str
+    last_char: Optional[str]
+    text_frames: List[Frames]
+    partial_frames: Frames
+    logit_score: float
+    lm_score: float
+
+
 # lm state supports single and multi language model
 LMState = Optional[Union["kenlm.State", List["kenlm.State"]]]
 # for output beams we return the text, the scores, the lm state and the word frame indices
 # text, last_lm_state, text_frames, logit_score, lm_score
+@dataclasses.dataclass(frozen=True)
+class OutputBeam:
+    text: str
+    last_lm_state: LMState
 OutputBeam = Tuple[str, LMState, List[WordFrames], float, float]
 # for multiprocessing we need to remove kenlm state since it can't be pickled
 OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
