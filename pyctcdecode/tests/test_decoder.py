@@ -15,7 +15,7 @@ from ..decoder import (
     Beam,
     BeamSearchDecoderCTC,
     LMBeam,
-    OutputBeamMPSafe,
+    OutputBeam,
     _merge_beams,
     _normalize_whitespace,
     _prune_history,
@@ -327,40 +327,45 @@ class TestDecoder(unittest.TestCase):
         text_list = decoder.decode_beams_batch(pool, [TEST_LOGITS] * 5)
         expected_text_list = [
             [
-                OutputBeamMPSafe(
+                OutputBeam(
                     "bugs bunny",
+                    None,
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
                     0.14660044849005294,
                 )
             ],
             [
-                OutputBeamMPSafe(
+                OutputBeam(
                     "bugs bunny",
+                    None,
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
                     0.14660044849005294,
                 )
             ],
             [
-                OutputBeamMPSafe(
+                OutputBeam(
                     "bugs bunny",
+                    None,
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
                     0.14660044849005294,
                 )
             ],
             [
-                OutputBeamMPSafe(
+                OutputBeam(
                     "bugs bunny",
+                    None,
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
                     0.14660044849005294,
                 )
             ],
             [
-                OutputBeamMPSafe(
+                OutputBeam(
                     "bugs bunny",
+                    None,
                     [("bugs", (0, 4)), ("bunny", (7, 13))],
                     -2.853399551509947,
                     0.14660044849005294,

@@ -37,6 +37,10 @@ except ImportError:
 class AbstractLMState(abc.ABC):
     """Abstract container for state information."""
 
+    def get_mp_safe_state(self) -> Optional["AbstractLMState"]:
+        """Get a multiprocessing-safe version of the state if available."""
+        return None
+
 
 class KenlmState(AbstractLMState):
     def __init__(self, state: "kenlm.State") -> None:

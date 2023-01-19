@@ -92,16 +92,9 @@ class Beam:
 
 
 @dataclasses.dataclass(frozen=True)
-class LMBeam:
+class LMBeam(Beam):
     """Contains everything in a beam plus an additional language model score."""
 
-    text: str
-    next_word: str
-    partial_word: str
-    last_char: Optional[str]
-    text_frames: List[Frames]
-    partial_frames: Frames
-    logit_score: float
     lm_score: float
 
 
@@ -115,16 +108,13 @@ class OutputBeam:
     logit_score: float  # Cumulative logit score
     lm_score: float  # Cumulative language model + logit score
 
-
-# May want to consider having an MP-safe LM state in case there are models that are safe to use
-@dataclasses.dataclass(frozen=True)
-class OutputBeamMPSafe:
-    """Output without LM state since that isn't necessarily multiprocessing-safe."""
-
-    text: str
-    text_frames: List[WordFrames]
-    logit_score: float  # Cumulative logit score
-    lm_score: float  # Cumulative language model + logit score
+    def get_mp_safe_beam(self) -> "OutputBeam":
+        """Get a multiprocessing-safe version of the beam."""
+        if self.last_lm_state is None:
+            last_lm_state = None
+        else:
+            last_lm_state = self.last_lm_state.get_mp_safe_state()
+        return dataclasses.replace(self, last_lm_state=last_lm_state)
 
 
 # Key for the language model score cache
@@ -675,7 +665,7 @@ class BeamSearchDecoderCTC:
         prune_history: bool,
         hotwords: Optional[Iterable[str]],
         hotword_weight: float,
-    ) -> List[OutputBeamMPSafe]:
+    ) -> List[OutputBeam]:
         """Thing wrapper around self.decode_beams to allow for multiprocessing."""
         decoded_beams = self.decode_beams(
             logits=logits,
@@ -687,15 +677,7 @@ class BeamSearchDecoderCTC:
             hotword_weight=hotword_weight,
         )
         # remove state to allow multiprocessing
-        decoded_beams_mp_safe = [
-            OutputBeamMPSafe(
-                text=output_beam.text,
-                text_frames=output_beam.text_frames,
-                logit_score=output_beam.logit_score,
-                lm_score=output_beam.lm_score,
-            )
-            for output_beam in decoded_beams
-        ]
+        decoded_beams_mp_safe = [output_beam.get_mp_safe_beam() for output_beam in decoded_beams]
         return decoded_beams_mp_safe
 
     def decode_beams_batch(
@@ -708,7 +690,7 @@ class BeamSearchDecoderCTC:
         prune_history: bool = DEFAULT_PRUNE_BEAMS,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
-    ) -> List[List[OutputBeamMPSafe]]:
+    ) -> List[List[OutputBeam]]:
         """Use multiprocessing pool to batch decode input logits.
 
         Note that multiprocessing here does not work for a spawn context, so in that case
@@ -753,7 +735,7 @@ class BeamSearchDecoderCTC:
             prune_history=prune_history,
             hotword_weight=hotword_weight,
         )
-        decoded_beams_list: List[List[OutputBeamMPSafe]] = valid_pool.map(p_decode, logits_list)
+        decoded_beams_list: List[List[OutputBeam]] = valid_pool.map(p_decode, logits_list)
         return decoded_beams_list
 
     def decode(
