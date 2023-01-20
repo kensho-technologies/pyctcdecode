@@ -19,6 +19,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Tuple,
     TypeVar,
     Union,
@@ -126,7 +127,7 @@ LMScoreCache = Dict[LMScoreCacheKey, LMScoreCacheValue]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
-EMPTY_START_BEAM: Beam = Beam("", "", "", None, [], NULL_FRAMES, 0.0)
+EMPTY_START_BEAM = Beam("", "", "", None, [], NULL_FRAMES, 0.0)
 
 
 # Generic float type
@@ -422,31 +423,20 @@ class BeamSearchDecoderCTC:
 
         return new_beams
 
-    def _decode_logits(
+    def _partial_decode_logits(
         self,
         logits: NDArray[NpFloat],
+        beams: List[Beam],
         beam_width: int,
         beam_prune_logp: float,
         token_min_logp: float,
         prune_history: bool,
         hotword_scorer: HotwordScorer,
-        lm_start_state: Optional[AbstractLMState] = None,
-    ) -> List[OutputBeam]:
-        """Perform beam search decoding."""
-        # local dictionaries to cache scores during decoding
-        # we can pass in an input start state to keep the decoder stateful and working on realtime
+        cached_lm_scores: LMScoreCache,
+        cached_p_lm_scores: Dict[str, float],
+    ) -> List[Beam]:
+        """Decode logits for a set of beams with warmed score caches."""
         language_model = self._language_model
-        if language_model is None:
-            cached_lm_scores: LMScoreCache = {}
-        else:
-            if lm_start_state is None:
-                start_state = language_model.get_start_state()
-            else:
-                start_state = lm_start_state
-            cached_lm_scores = {("", False): (0.0, 0.0, start_state)}
-        cached_p_lm_scores: Dict[str, float] = {}
-        # start with single beam to expand on
-        beams = [EMPTY_START_BEAM]
         # bpe we can also have trailing word boundaries ▁⁇▁ so we may need to remember breaks
         force_next_break = False
         for frame_idx, logit_col in enumerate(logits):
@@ -562,37 +552,102 @@ class BeamSearchDecoderCTC:
             else:
                 beams = [Beam.from_lm_beam(b) for b in trimmed_beams]
 
-        # final lm scoring and sorting
-        new_beams = []
-        for beam in beams:
-            new_token_times = (
-                beam.text_frames
-                if beam.partial_word == ""
-                else beam.text_frames + [beam.partial_frames]
-            )
-            new_beams.append(
-                Beam(
-                    text=beam.text,
-                    next_word=beam.partial_word,
-                    partial_word="",
-                    last_char=None,
-                    text_frames=new_token_times,
-                    partial_frames=(-1, -1),
-                    logit_score=beam.logit_score,
-                ),
-            )
-        new_beams = _merge_beams(new_beams)
+        return beams
+
+    def _finalize_beams(
+        self,
+        beams: Sequence[Beam],
+        beam_width: int,
+        beam_prune_logp: float,
+        hotword_scorer: HotwordScorer,
+        cached_lm_scores: LMScoreCache,
+        cached_p_lm_scores: Dict[str, float],
+        force_next_word: bool = False,
+        is_end: bool = False,
+    ) -> List[LMBeam]:
+        """Perform final language model scoring and sorting."""
+        if force_next_word or is_end:
+            new_beams = []
+            for beam in beams:
+                new_token_times = (
+                    beam.text_frames
+                    if beam.partial_word == ""
+                    else beam.text_frames + [beam.partial_frames]
+                )
+                new_beams.append(
+                    Beam(
+                        text=beam.text,
+                        next_word=beam.partial_word,
+                        partial_word="",
+                        last_char=None,
+                        text_frames=new_token_times,
+                        partial_frames=(-1, -1),
+                        logit_score=beam.logit_score,
+                    ),
+                )
+            new_beams = _merge_beams(new_beams)
+        else:
+            new_beams = list(beams)
         scored_beams = self._get_lm_beams(
             new_beams,
             hotword_scorer,
             cached_lm_scores,
             cached_p_lm_scores,
-            is_eos=True,
+            is_eos=is_end,
         )
         # remove beam outliers
         max_score = max([b.lm_score for b in scored_beams])
         scored_beams = [b for b in scored_beams if b.lm_score >= max_score + beam_prune_logp]
-        trimmed_beams = _sort_and_trim_beams(scored_beams, beam_width)
+        return _sort_and_trim_beams(scored_beams, beam_width)
+
+    def _decode_logits(
+        self,
+        logits: NDArray[NpFloat],
+        beam_width: int,
+        beam_prune_logp: float,
+        token_min_logp: float,
+        prune_history: bool,
+        hotword_scorer: HotwordScorer,
+        lm_start_state: Optional[AbstractLMState] = None,
+    ) -> List[OutputBeam]:
+        """Perform beam search decoding."""
+        # local dictionaries to cache scores during decoding
+        # we can pass in an input start state to keep the decoder stateful and working on realtime
+        language_model = self._language_model
+        if language_model is None:
+            cached_lm_scores: LMScoreCache = {}
+        else:
+            if lm_start_state is None:
+                start_state = language_model.get_start_state()
+            else:
+                start_state = lm_start_state
+            cached_lm_scores = {("", False): (0.0, 0.0, start_state)}
+        cached_p_lm_scores: Dict[str, float] = {}
+        # start with single beam to expand on
+        beams = [EMPTY_START_BEAM]
+
+        beams = self._partial_decode_logits(
+            logits,
+            beams,
+            beam_width,
+            beam_prune_logp,
+            token_min_logp,
+            prune_history,
+            hotword_scorer,
+            cached_lm_scores,
+            cached_p_lm_scores,
+        )
+        trimmed_beams = self._finalize_beams(
+            beams,
+            beam_width,
+            beam_prune_logp,
+            hotword_scorer,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            force_next_word=True,
+            is_end=True,
+        )
+
         # remove unnecessary information from beams
         output_beams = [
             OutputBeam(
@@ -609,6 +664,65 @@ class BeamSearchDecoderCTC:
             for lm_beam in trimmed_beams
         ]
         return output_beams
+
+    def get_starting_state(self) -> Tuple[List[Beam], LMScoreCache, Dict[str, float]]:
+        """Get the starting beams and initial caches."""
+        start_beam = [EMPTY_START_BEAM]
+        language_model = self._language_model
+        if language_model is None:
+            cached_lm_scores: LMScoreCache = {}
+        else:
+            start_state = language_model.get_start_state()
+            cached_lm_scores = {("", False): (0.0, 0.0, start_state)}
+        cached_p_lm_scores: Dict[str, float] = {}
+        return start_beam, cached_lm_scores, cached_p_lm_scores
+
+    def partial_decode_beams(
+        self,
+        logits: NDArray[NpFloat],
+        cached_lm_scores: LMScoreCache,
+        cached_p_lm_scores: Dict[str, float],
+        beams: List[Beam],
+        beam_width: int = DEFAULT_BEAM_WIDTH,
+        beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
+        token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
+        prune_history: bool = DEFAULT_PRUNE_BEAMS,
+        hotword_scorer: Optional[HotwordScorer] = None,
+        force_next_word: bool = False,
+        is_end: bool = False,
+    ) -> List[LMBeam]:
+        """Decode beams for the given logits, allowing for additional decoding steps."""
+        self._check_logits_dimension(logits)
+        hotword_scorer = hotword_scorer or HotwordScorer.build_scorer([], weight=0.0)
+        # make sure we have log probs as input
+        if math.isclose(logits.sum(axis=1).mean(), 1):
+            # input looks like probabilities, so take log
+            logits = np.log(np.clip(logits, MIN_TOKEN_CLIP_P, 1))
+        else:
+            # convert logits into log probs
+            logits = np.clip(_log_softmax(logits, axis=1), np.log(MIN_TOKEN_CLIP_P), 0)
+        beams = self._partial_decode_logits(
+            logits,
+            beams,
+            beam_width,
+            beam_prune_logp,
+            token_min_logp,
+            prune_history,
+            hotword_scorer,
+            cached_lm_scores,
+            cached_p_lm_scores,
+        )
+        trimmed_beams = self._finalize_beams(
+            beams,
+            beam_width,
+            beam_prune_logp,
+            hotword_scorer,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            force_next_word=force_next_word,
+            is_end=is_end,
+        )
+        return trimmed_beams
 
     def decode_beams(
         self,
