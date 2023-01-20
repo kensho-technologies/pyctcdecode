@@ -633,7 +633,7 @@ class BeamSearchDecoderCTC:
             lm_start_state: language model start state for stateful predictions
 
         Returns:
-            List of beams of type OUTPUT_BEAM with various meta information
+            List of beams of type OutputBeam with various meta information
         """
         self._check_logits_dimension(logits)
         # prepare hotword input
@@ -707,7 +707,7 @@ class BeamSearchDecoderCTC:
             hotword_weight: weight factor for hotword importance
 
         Returns:
-            List of list of beams of type OUTPUT_BEAM_MP_SAFE with various meta information
+            List of list of multiprocessing-safe OutputBeams with various meta information
         """
         valid_pool = _get_valid_pool(pool)
         if valid_pool is None:
