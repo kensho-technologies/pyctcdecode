@@ -1,6 +1,7 @@
 # Copyright 2021-present Kensho Technologies, LLC.
 from __future__ import annotations, division
 
+import dataclasses
 import functools
 import heapq
 import logging
@@ -62,17 +63,60 @@ except ImportError:
 # store frame information for each word, where frame is the logit index of (start_frame, end_frame)
 Frames = Tuple[int, int]
 WordFrames = Tuple[str, Frames]
-# all the beam information we need to keep track of during decoding
-# text, next_word, partial_word, last_char, text_frames, part_frames, logit_score
-Beam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float]
-# same as BEAMS but with current lm score that will be discarded again after sorting
-LMBeam = Tuple[str, str, str, Optional[str], List[Frames], Frames, float, float]
 
-# for output beams we return the text, the scores, the lm state and the word frame indices
-# text, last_lm_state, text_frames, logit_score, lm_score
-OutputBeam = Tuple[str, Optional[AbstractLMState], List[WordFrames], float, float]
-# for multiprocessing we need to remove kenlm state since it can't be pickled
-OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
+
+@dataclasses.dataclass(frozen=True)
+class Beam:
+    """Contains all the info needed for decoding a beam."""
+
+    text: str
+    next_word: str
+    partial_word: str
+    last_char: Optional[str]
+    text_frames: List[Frames]
+    partial_frames: Frames
+    logit_score: float
+
+    @classmethod
+    def from_lm_beam(cls, lm_beam: LMBeam) -> "Beam":
+        """Create a Beam from an LMBeam by stripping out the LM score."""
+        return Beam(
+            text=lm_beam.text,
+            next_word=lm_beam.next_word,
+            partial_word=lm_beam.partial_word,
+            last_char=lm_beam.last_char,
+            text_frames=lm_beam.text_frames,
+            partial_frames=lm_beam.partial_frames,
+            logit_score=lm_beam.logit_score,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class LMBeam(Beam):
+    """Contains everything in a beam plus an additional language model score."""
+
+    lm_score: float
+
+
+@dataclasses.dataclass(frozen=True)
+class OutputBeam:
+    """Output information."""
+
+    text: str
+    last_lm_state: Optional[AbstractLMState]
+    text_frames: List[WordFrames]
+    logit_score: float  # Cumulative logit score
+    lm_score: float  # Cumulative language model + logit score
+
+    def get_mp_safe_beam(self) -> "OutputBeam":
+        """Get a multiprocessing-safe version of the beam."""
+        if self.last_lm_state is None:
+            last_lm_state = None
+        else:
+            last_lm_state = self.last_lm_state.get_mp_safe_state()
+        return dataclasses.replace(self, last_lm_state=last_lm_state)
+
+
 # Key for the language model score cache
 # text, is_eos
 LMScoreCacheKey = Tuple[str, bool]
@@ -81,7 +125,7 @@ LMScoreCacheValue = Tuple[float, float, AbstractLMState]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
-EMPTY_START_BEAM: Beam = ("", "", "", None, [], NULL_FRAMES, 0.0)
+EMPTY_START_BEAM: Beam = Beam("", "", "", None, [], NULL_FRAMES, 0.0)
 
 
 # Generic float type
@@ -118,7 +162,7 @@ def _normalize_whitespace(text: str) -> str:
 
 def _sort_and_trim_beams(beams: List[LMBeam], beam_width: int) -> List[LMBeam]:
     """Take top N beams by score."""
-    return heapq.nlargest(beam_width, beams, key=lambda x: x[-1])
+    return heapq.nlargest(beam_width, beams, key=lambda x: x.lm_score)
 
 
 def _sum_log_scores(s1: float, s2: float) -> float:
@@ -165,28 +209,15 @@ def _merge_tokens(token_1: str, token_2: str) -> str:
 def _merge_beams(beams: List[Beam]) -> List[Beam]:
     """Merge beams with same prefix together."""
     beam_dict = {}
-    for text, next_word, word_part, last_char, text_frames, part_frames, logit_score in beams:
-        new_text = _merge_tokens(text, next_word)
-        hash_idx = (new_text, word_part, last_char)
+    for beam in beams:
+        new_text = _merge_tokens(beam.text, beam.next_word)
+        hash_idx = (new_text, beam.partial_word, beam.last_char)
         if hash_idx not in beam_dict:
-            beam_dict[hash_idx] = (
-                text,
-                next_word,
-                word_part,
-                last_char,
-                text_frames,
-                part_frames,
-                logit_score,
-            )
+            beam_dict[hash_idx] = beam
         else:
-            beam_dict[hash_idx] = (
-                text,
-                next_word,
-                word_part,
-                last_char,
-                text_frames,
-                part_frames,
-                _sum_log_scores(beam_dict[hash_idx][-1], logit_score),
+            # We've already seen this text - we want to combine the scores
+            beam_dict[hash_idx] = dataclasses.replace(
+                beam, logit_score=_sum_log_scores(beam_dict[hash_idx].logit_score, beam.logit_score)
             )
     return list(beam_dict.values())
 
@@ -199,27 +230,28 @@ def _prune_history(beams: List[LMBeam], lm_order: int) -> List[Beam]:
     higher scoring ones. Note that this helps speed up the decoding process but comes at the cost of
     some amount of beam diversity. If more than the top beam is used in the output it should
     potentially be disabled.
+
+    Args:
+        beams: list of LMBeam
+        lm_order: int, the order of the n-gram model
+
+    Returns:
+        list of Beam
     """
     # let's keep at least 1 word of history
     min_n_history = max(1, lm_order - 1)
     seen_hashes = set()
     filtered_beams = []
     # for each beam after this, check if we need to add it
-    for (text, next_word, word_part, last_char, text_frames, part_frames, logit_score, _) in beams:
+    for lm_beam in beams:
         # hash based on history that can still affect lm scoring going forward
-        hash_idx = (tuple(text.split()[-min_n_history:]), word_part, last_char)
+        hash_idx = (
+            tuple(lm_beam.text.split()[-min_n_history:]),
+            lm_beam.partial_word,
+            lm_beam.last_char,
+        )
         if hash_idx not in seen_hashes:
-            filtered_beams.append(
-                (
-                    text,
-                    next_word,
-                    word_part,
-                    last_char,
-                    text_frames,
-                    part_frames,
-                    logit_score,
-                )
-            )
+            filtered_beams.append(Beam.from_lm_beam(lm_beam))
             seen_hashes.add(hash_idx)
     return filtered_beams
 
@@ -323,42 +355,44 @@ class BeamSearchDecoderCTC:
         # if no language model available then return raw score + hotwords as lm score
         if language_model is None:
             new_beams = []
-            for text, next_word, word_part, last_char, frame_list, frames, logit_score in beams:
-                new_text = _merge_tokens(text, next_word)
+            for beam in beams:
+                new_text = _merge_tokens(beam.text, beam.next_word)
                 # note that usually this gets scaled with alpha
                 lm_hw_score = (
-                    logit_score
+                    beam.logit_score
                     + hotword_scorer.score(new_text)
-                    + hotword_scorer.score_partial_token(word_part)
+                    + hotword_scorer.score_partial_token(beam.partial_word)
                 )
 
                 new_beams.append(
-                    (
-                        new_text,
-                        "",
-                        word_part,
-                        last_char,
-                        frame_list,
-                        frames,
-                        logit_score,
-                        lm_hw_score,
+                    LMBeam(
+                        text=new_text,
+                        next_word="",
+                        partial_word=beam.partial_word,
+                        last_char=beam.last_char,
+                        text_frames=beam.text_frames,
+                        partial_frames=beam.partial_frames,
+                        logit_score=beam.logit_score,
+                        lm_score=lm_hw_score,
                     )
                 )
             return new_beams
 
         new_beams = []
-        for text, next_word, word_part, last_char, frame_list, frames, logit_score in beams:
+        for beam in beams:
             # fast token merge
-            new_text = _merge_tokens(text, next_word)
+            new_text = _merge_tokens(beam.text, beam.next_word)
             cache_key = (new_text, is_eos)
             if cache_key not in cached_lm_scores:
-                _, prev_raw_lm_score, start_state = cached_lm_scores[(text, False)]
-                score, end_state = language_model.score(start_state, next_word, is_last_word=is_eos)
+                _, prev_raw_lm_score, start_state = cached_lm_scores[(beam.text, False)]
+                score, end_state = language_model.score(
+                    start_state, beam.next_word, is_last_word=is_eos
+                )
                 raw_lm_score = prev_raw_lm_score + score
                 lm_hw_score = raw_lm_score + hotword_scorer.score(new_text)
                 cached_lm_scores[cache_key] = (lm_hw_score, raw_lm_score, end_state)
             lm_score, _, _ = cached_lm_scores[cache_key]
-
+            word_part = beam.partial_word
             if len(word_part) > 0:
                 if word_part not in cached_partial_token_scores:
                     # if prefix available in hotword trie use that, otherwise default to char trie
@@ -373,15 +407,15 @@ class BeamSearchDecoderCTC:
                 lm_score += cached_partial_token_scores[word_part]
 
             new_beams.append(
-                (
-                    new_text,
-                    "",
-                    word_part,
-                    last_char,
-                    frame_list,
-                    frames,
-                    logit_score,
-                    logit_score + lm_score,
+                LMBeam(
+                    text=new_text,
+                    next_word="",
+                    partial_word=word_part,
+                    last_char=beam.last_char,
+                    text_frames=beam.text_frames,
+                    partial_frames=beam.partial_frames,
+                    logit_score=beam.logit_score,
+                    lm_score=beam.logit_score + lm_score,
                 )
             )
 
@@ -421,33 +455,27 @@ class BeamSearchDecoderCTC:
             for idx_char in idx_list:
                 p_char = logit_col[idx_char]
                 char = self._idx2vocab[idx_char]
-                for (
-                    text,
-                    next_word,
-                    word_part,
-                    last_char,
-                    text_frames,
-                    part_frames,
-                    logit_score,
-                ) in beams:
+                for beam in beams:
                     # if only blank token or same token
-                    if char == "" or last_char == char:
+                    if char == "" or beam.last_char == char:
                         if char == "":
-                            new_end_frame = part_frames[0]
+                            new_end_frame = beam.partial_frames[0]
                         else:
                             new_end_frame = frame_idx + 1
                         new_part_frames = (
-                            part_frames if char == "" else (part_frames[0], new_end_frame)
+                            beam.partial_frames
+                            if char == ""
+                            else (beam.partial_frames[0], new_end_frame)
                         )
                         new_beams.append(
-                            (
-                                text,
-                                next_word,
-                                word_part,
-                                char,
-                                text_frames,
-                                new_part_frames,
-                                logit_score + p_char,
+                            Beam(
+                                text=beam.text,
+                                next_word=beam.next_word,
+                                partial_word=beam.partial_word,
+                                last_char=char,
+                                text_frames=beam.text_frames,
+                                partial_frames=new_part_frames,
+                                logit_score=beam.logit_score + p_char,
                             )
                         )
                     # if bpe and leading space char
@@ -461,51 +489,55 @@ class BeamSearchDecoderCTC:
                             clean_char = clean_char[:-1]
                             force_next_break = True
                         new_frame_list = (
-                            text_frames if word_part == "" else text_frames + [part_frames]
+                            beam.text_frames
+                            if beam.partial_word == ""
+                            else beam.text_frames + [beam.partial_frames]
                         )
                         new_beams.append(
-                            (
-                                text,
-                                word_part,
-                                clean_char,
-                                char,
-                                new_frame_list,
-                                (frame_idx, frame_idx + 1),
-                                logit_score + p_char,
+                            Beam(
+                                text=beam.text,
+                                next_word=beam.partial_word,
+                                partial_word=clean_char,
+                                last_char=char,
+                                text_frames=new_frame_list,
+                                partial_frames=(frame_idx, frame_idx + 1),
+                                logit_score=beam.logit_score + p_char,
                             )
                         )
                     # if not bpe and space char
                     elif not self._is_bpe and char == " ":
                         new_frame_list = (
-                            text_frames if word_part == "" else text_frames + [part_frames]
+                            beam.text_frames
+                            if beam.partial_word == ""
+                            else beam.text_frames + [beam.partial_frames]
                         )
                         new_beams.append(
-                            (
-                                text,
-                                word_part,
-                                "",
-                                char,
-                                new_frame_list,
-                                NULL_FRAMES,
-                                logit_score + p_char,
+                            Beam(
+                                text=beam.text,
+                                next_word=beam.partial_word,
+                                partial_word="",
+                                last_char=char,
+                                text_frames=new_frame_list,
+                                partial_frames=NULL_FRAMES,
+                                logit_score=beam.logit_score + p_char,
                             )
                         )
                     # general update of continuing token without space
                     else:
                         new_part_frames = (
                             (frame_idx, frame_idx + 1)
-                            if part_frames[0] < 0
-                            else (part_frames[0], frame_idx + 1)
+                            if beam.partial_frames[0] < 0
+                            else (beam.partial_frames[0], frame_idx + 1)
                         )
                         new_beams.append(
-                            (
-                                text,
-                                next_word,
-                                word_part + char,
+                            Beam(
+                                beam.text,
+                                beam.next_word,
+                                beam.partial_word + char,
                                 char,
-                                text_frames,
+                                beam.text_frames,
                                 new_part_frames,
-                                logit_score + p_char,
+                                beam.logit_score + p_char,
                             )
                         )
 
@@ -518,8 +550,8 @@ class BeamSearchDecoderCTC:
                 cached_p_lm_scores,
             )
             # remove beam outliers
-            max_score = max([b[-1] for b in scored_beams])
-            scored_beams = [b for b in scored_beams if b[-1] >= max_score + beam_prune_logp]
+            max_score = max([b.lm_score for b in scored_beams])
+            scored_beams = [b for b in scored_beams if b.lm_score >= max_score + beam_prune_logp]
             # beam pruning by taking highest N prefixes and then filtering down
             trimmed_beams = _sort_and_trim_beams(scored_beams, beam_width)
             # prune history and remove lm score from beams
@@ -527,13 +559,27 @@ class BeamSearchDecoderCTC:
                 lm_order = 1 if language_model is None else language_model.order
                 beams = _prune_history(trimmed_beams, lm_order=lm_order)
             else:
-                beams = [b[:-1] for b in trimmed_beams]
+                beams = [Beam.from_lm_beam(b) for b in trimmed_beams]
 
         # final lm scoring and sorting
         new_beams = []
-        for text, _, word_part, _, frame_list, frames, logit_score in beams:
-            new_token_times = frame_list if word_part == "" else frame_list + [frames]
-            new_beams.append((text, word_part, "", None, new_token_times, (-1, -1), logit_score))
+        for beam in beams:
+            new_token_times = (
+                beam.text_frames
+                if beam.partial_word == ""
+                else beam.text_frames + [beam.partial_frames]
+            )
+            new_beams.append(
+                Beam(
+                    text=beam.text,
+                    next_word=beam.partial_word,
+                    partial_word="",
+                    last_char=None,
+                    text_frames=new_token_times,
+                    partial_frames=(-1, -1),
+                    logit_score=beam.logit_score,
+                ),
+            )
         new_beams = _merge_beams(new_beams)
         scored_beams = self._get_lm_beams(
             new_beams,
@@ -543,19 +589,23 @@ class BeamSearchDecoderCTC:
             is_eos=True,
         )
         # remove beam outliers
-        max_score = max([b[-1] for b in scored_beams])
-        scored_beams = [b for b in scored_beams if b[-1] >= max_score + beam_prune_logp]
+        max_score = max([b.lm_score for b in scored_beams])
+        scored_beams = [b for b in scored_beams if b.lm_score >= max_score + beam_prune_logp]
         trimmed_beams = _sort_and_trim_beams(scored_beams, beam_width)
         # remove unnecessary information from beams
         output_beams = [
-            (
-                _normalize_whitespace(text),
-                cached_lm_scores[(text, True)][-1] if (text, True) in cached_lm_scores else None,
-                list(zip(text.split(), text_frames)),
-                logit_score,
-                combined_score,  # same as logit_score if lm is missing
+            OutputBeam(
+                text=_normalize_whitespace(lm_beam.text),
+                last_lm_state=(
+                    cached_lm_scores[(lm_beam.text, True)][-1]
+                    if (lm_beam.text, True) in cached_lm_scores
+                    else None
+                ),
+                text_frames=list(zip(lm_beam.text.split(), lm_beam.text_frames)),
+                logit_score=lm_beam.logit_score,
+                lm_score=lm_beam.lm_score,  # same as logit_score if lm is missing
             )
-            for text, _, _, _, text_frames, _, logit_score, combined_score in trimmed_beams
+            for lm_beam in trimmed_beams
         ]
         return output_beams
 
@@ -583,7 +633,7 @@ class BeamSearchDecoderCTC:
             lm_start_state: language model start state for stateful predictions
 
         Returns:
-            List of beams of type OUTPUT_BEAM with various meta information
+            List of beams of type OutputBeam with various meta information
         """
         self._check_logits_dimension(logits)
         # prepare hotword input
@@ -615,7 +665,7 @@ class BeamSearchDecoderCTC:
         prune_history: bool,
         hotwords: Optional[Iterable[str]],
         hotword_weight: float,
-    ) -> List[OutputBeamMPSafe]:
+    ) -> List[OutputBeam]:
         """Thing wrapper around self.decode_beams to allow for multiprocessing."""
         decoded_beams = self.decode_beams(
             logits=logits,
@@ -627,10 +677,7 @@ class BeamSearchDecoderCTC:
             hotword_weight=hotword_weight,
         )
         # remove state to allow multiprocessing
-        decoded_beams_mp_safe = [
-            (text, frames_list, logit_score, lm_score)
-            for text, _, frames_list, logit_score, lm_score in decoded_beams
-        ]
+        decoded_beams_mp_safe = [output_beam.get_mp_safe_beam() for output_beam in decoded_beams]
         return decoded_beams_mp_safe
 
     def decode_beams_batch(
@@ -643,7 +690,7 @@ class BeamSearchDecoderCTC:
         prune_history: bool = DEFAULT_PRUNE_BEAMS,
         hotwords: Optional[Iterable[str]] = None,
         hotword_weight: float = DEFAULT_HOTWORD_WEIGHT,
-    ) -> List[List[OutputBeamMPSafe]]:
+    ) -> List[List[OutputBeam]]:
         """Use multiprocessing pool to batch decode input logits.
 
         Note that multiprocessing here does not work for a spawn context, so in that case
@@ -660,7 +707,7 @@ class BeamSearchDecoderCTC:
             hotword_weight: weight factor for hotword importance
 
         Returns:
-            List of list of beams of type OUTPUT_BEAM_MP_SAFE with various meta information
+            List of list of multiprocessing-safe OutputBeams with various meta information
         """
         valid_pool = _get_valid_pool(pool)
         if valid_pool is None:
@@ -688,7 +735,7 @@ class BeamSearchDecoderCTC:
             prune_history=prune_history,
             hotword_weight=hotword_weight,
         )
-        decoded_beams_list: List[List[OutputBeamMPSafe]] = valid_pool.map(p_decode, logits_list)
+        decoded_beams_list: List[List[OutputBeam]] = valid_pool.map(p_decode, logits_list)
         return decoded_beams_list
 
     def decode(
@@ -725,7 +772,7 @@ class BeamSearchDecoderCTC:
             hotword_weight=hotword_weight,
             lm_start_state=lm_start_state,
         )
-        return decoded_beams[0][0]
+        return decoded_beams[0].text
 
     def decode_batch(
         self,
