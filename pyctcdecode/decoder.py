@@ -78,6 +78,7 @@ OutputBeamMPSafe = Tuple[str, List[WordFrames], float, float]
 LMScoreCacheKey = Tuple[str, bool]
 # LM score with hotword score, raw LM score, AbstracatLMState
 LMScoreCacheValue = Tuple[float, float, AbstractLMState]
+LMScoreCache = Dict[LMScoreCacheKey, LMScoreCacheValue]
 
 # constants
 NULL_FRAMES: Frames = (-1, -1)  # placeholder that gets replaced with positive integer frame indices
@@ -402,7 +403,7 @@ class BeamSearchDecoderCTC:
         # we can pass in an input start state to keep the decoder stateful and working on realtime
         language_model = self._language_model
         if language_model is None:
-            cached_lm_scores: Dict[LMScoreCacheKey, LMScoreCacheValue] = {}
+            cached_lm_scores: LMScoreCache = {}
         else:
             if lm_start_state is None:
                 start_state = language_model.get_start_state()
