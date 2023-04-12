@@ -585,7 +585,7 @@ class TestDecoder(unittest.TestCase):
 
     def test_partial_decode_with_hotwords(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS)
-        hotword_scorer = HotwordScorer.build_scorer(["bugs"],  weight=25.0)
+        hotword_scorer = HotwordScorer.build_scorer(["bugs"], weight=25.0)
         logits1 = TEST_LOGITS[:3]
         logits2 = TEST_LOGITS[3:8]
         logits3 = TEST_LOGITS[8:]
