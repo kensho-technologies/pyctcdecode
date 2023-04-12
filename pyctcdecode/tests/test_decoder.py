@@ -585,7 +585,7 @@ class TestDecoder(unittest.TestCase):
 
     def test_partial_decode_with_hotwords(self):
         decoder = build_ctcdecoder(SAMPLE_LABELS)
-        hotword_scorer = HotwordScorer.build_scorer(["bugs"])
+        hotword_scorer = HotwordScorer.build_scorer(["bugs"],  weight=25.0)
         logits1 = TEST_LOGITS[:3]
         logits2 = TEST_LOGITS[3:8]
         logits3 = TEST_LOGITS[8:]
@@ -617,6 +617,85 @@ class TestDecoder(unittest.TestCase):
             hotword_scorer=hotword_scorer,
             is_end=True,
         )
+        decoded_beams = decoder.decode_beams(TEST_LOGITS, hotwords=["bugs"], hotword_weight=25.0)
+        self.assertEqual("bugs bunny", partial_final_beams[0].text)
+        self.assertEqual(len(decoded_beams), len(partial_final_beams))
+        for decoded_beam, partial_final_beam in zip(decoded_beams, partial_final_beams):
+            self.assertEqual(decoded_beam.text, partial_final_beam.text)
+            self.assertEqual(
+                [text_frame[1] for text_frame in decoded_beam.text_frames],
+                partial_final_beam.text_frames,
+            )
+            self.assertAlmostEqual(decoded_beam.logit_score, partial_final_beam.logit_score)
+
+    def test_partial_decode_with_multiple_hotword_scorers(self):
+        decoder = build_ctcdecoder(SAMPLE_LABELS)
+        hotword_scorer = HotwordScorer.build_scorer(["bugs"], weight=15.0)
+        hotword_scorer2 = HotwordScorer.build_scorer(["bunny"], weight=15.0)
+        logits1 = TEST_LOGITS[:3]
+        logits2 = TEST_LOGITS[3:8]
+        logits3 = TEST_LOGITS[8:]
+        beams, cached_lm_scores, cached_p_lm_scores = decoder.get_starting_state()
+        beams = decoder.partial_decode_beams(
+            logits1,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            beams,
+            0,
+            hotword_scorer=hotword_scorer,
+            is_end=False,
+        )
+        beams = decoder.partial_decode_beams(
+            logits2,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            beams,
+            3,
+            hotword_scorer=hotword_scorer2,
+            is_end=False,
+        )
+        partial_final_beams = decoder.partial_decode_beams(
+            logits3,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            beams,
+            8,
+            hotword_scorer=None,
+            is_end=True,
+        )
+        # With no LM, the first 3 characters become "bug" from the prefix of "bugs"
+        # and then that hotword is dropped, so it's not completed
+        self.assertEqual("bugny bunny", partial_final_beams[0].text)
+
+        beams, cached_lm_scores, cached_p_lm_scores = decoder.get_starting_state()
+        beams = decoder.partial_decode_beams(
+            logits1,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            beams,
+            0,
+            hotword_scorer=hotword_scorer,
+            is_end=False,
+        )
+        beams = decoder.partial_decode_beams(
+            logits2,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            beams,
+            3,
+            hotword_scorer=hotword_scorer,
+            is_end=False,
+        )
+        partial_final_beams = decoder.partial_decode_beams(
+            logits3,
+            cached_lm_scores,
+            cached_p_lm_scores,
+            beams,
+            8,
+            hotword_scorer=hotword_scorer2,
+            is_end=True,
+        )
+        self.assertEqual("bugs bunny", partial_final_beams[0].text)
 
     def test_frame_annotation(self):
         # build a basic decoder with LM to get all possible combinations
