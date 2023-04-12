@@ -28,7 +28,6 @@ source = "https://github.com/kensho-technologies/pyctcdecode"
 dev = [
     "bandit",
     "black",
-    "codecov",
     "flake8",
     "huggingface-hub",
     "hypothesis>=6.14,<7",
