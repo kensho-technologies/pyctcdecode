@@ -311,6 +311,9 @@ class BeamSearchDecoderCTC:
         if lm_score_boundary is not None:
             params["score_boundary"] = lm_score_boundary
         language_model.reset_params(**params)
+    
+    def __del__(self):
+        self.cleanup()
 
     @classmethod
     def clear_class_models(cls) -> None:
