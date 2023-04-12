@@ -512,6 +512,51 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(beams[0].text, "bugs bunny")
         self.assertEqual(beams[1].text, "bunny bunny")
 
+    def test_partial_decode(self):
+        decoder = build_ctcdecoder(SAMPLE_LABELS)
+
+        # First we want to confirm that partial decoding does not change if you
+        # process the whole logits versus splitting into several chunks
+        beams, cached_lm_scores, cached_p_lm_scores = decoder.get_starting_state()
+        final_beams = decoder.partial_decode_beams(
+            TEST_LOGITS, cached_lm_scores, cached_p_lm_scores, beams, 0, is_end=True
+        )
+
+        logits1 = TEST_LOGITS[:3]
+        logits2 = TEST_LOGITS[3:8]
+        logits3 = TEST_LOGITS[8:]
+        beams, cached_lm_scores, cached_p_lm_scores = decoder.get_starting_state()
+        beams = decoder.partial_decode_beams(
+            logits1, cached_lm_scores, cached_p_lm_scores, beams, 0, is_end=False
+        )
+        beams = decoder.partial_decode_beams(
+            logits2, cached_lm_scores, cached_p_lm_scores, beams, 3, is_end=False
+        )
+        partial_final_beams = decoder.partial_decode_beams(
+            logits3, cached_lm_scores, cached_p_lm_scores, beams, 8, is_end=True
+        )
+
+        self.assertEqual(len(final_beams), len(partial_final_beams))
+        self.assertEqual("bunny bunny", partial_final_beams[0].text)
+        self.assertEqual([(0, 6), (7, 13)], partial_final_beams[0].text_frames)
+        self.assertAlmostEqual(-2.6933782130551505, partial_final_beams[0].logit_score)
+
+        for final_beam, partial_final_beam in zip(final_beams, partial_final_beams):
+            self.assertEqual(final_beam.text, partial_final_beam.text)
+            self.assertEqual(final_beam.text_frames, partial_final_beam.text_frames)
+            self.assertAlmostEqual(final_beam.logit_score, partial_final_beam.logit_score)
+
+        # Now we want to confirm that partial decoding matches full decoding
+        decoded_beams = decoder.decode_beams(TEST_LOGITS)
+        self.assertEqual(len(decoded_beams), len(partial_final_beams))
+        for decoded_beam, partial_final_beam in zip(decoded_beams, partial_final_beams):
+            self.assertEqual(decoded_beam.text, partial_final_beam.text)
+            self.assertEqual(
+                [text_frame[1] for text_frame in decoded_beam.text_frames],
+                partial_final_beam.text_frames,
+            )
+            self.assertAlmostEqual(decoded_beam.logit_score, partial_final_beam.logit_score)
+
     def test_frame_annotation(self):
         # build a basic decoder with LM to get all possible combinations
         decoder = build_ctcdecoder(SAMPLE_LABELS)

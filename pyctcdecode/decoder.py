@@ -434,12 +434,13 @@ class BeamSearchDecoderCTC:
         hotword_scorer: HotwordScorer,
         cached_lm_scores: LMScoreCache,
         cached_p_lm_scores: Dict[str, float],
+        processed_frames: int = 0,
     ) -> List[Beam]:
         """Decode logits for a set of beams with warmed score caches."""
         language_model = self._language_model
         # bpe we can also have trailing word boundaries ▁⁇▁ so we may need to remember breaks
         force_next_break = False
-        for frame_idx, logit_col in enumerate(logits):
+        for frame_idx, logit_col in enumerate(logits, start=processed_frames):
             max_idx = logit_col.argmax()
             idx_list = set(np.where(logit_col >= token_min_logp)[0]) | {max_idx}
             new_beams: List[Beam] = []
@@ -683,6 +684,7 @@ class BeamSearchDecoderCTC:
         cached_lm_scores: LMScoreCache,
         cached_p_lm_scores: Dict[str, float],
         beams: List[Beam],
+        processed_frames: int,
         beam_width: int = DEFAULT_BEAM_WIDTH,
         beam_prune_logp: float = DEFAULT_PRUNE_LOGP,
         token_min_logp: float = DEFAULT_MIN_TOKEN_LOGP,
@@ -711,6 +713,7 @@ class BeamSearchDecoderCTC:
             hotword_scorer,
             cached_lm_scores,
             cached_p_lm_scores,
+            processed_frames=processed_frames,
         )
         trimmed_beams = self._finalize_beams(
             beams,
