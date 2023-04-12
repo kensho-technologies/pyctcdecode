@@ -242,9 +242,6 @@ class MockContext:
 
 
 class TestDecoder(unittest.TestCase):
-    def setUpClass(self):
-        # This is used in performance tests, so we want to remove the build time
-        self.libri_labels_decoder = build_ctcdecoder(LIBRI_LABELS)
     def test_decoder(self):
         alphabet = Alphabet.build_alphabet(SAMPLE_LABELS)
 
@@ -591,7 +588,8 @@ class TestDecoder(unittest.TestCase):
     @given(st.builds(_random_libri_logits, st.integers(min_value=0, max_value=20)))
     def test_fuzz_decode(self, logits: np.ndarray):
         """Ensure decoder is robust to random logit inputs."""
-        self.libri_labels_decoder.decode(logits)
+        decoder = build_ctcdecoder(LIBRI_LABELS)
+        decoder.decode(logits)
 
     @settings(deadline=1000)
     @given(
@@ -602,7 +600,8 @@ class TestDecoder(unittest.TestCase):
         )
     )
     def test_invalid_logit_inputs(self, logits: np.ndarray):
-        self.libri_labels_decoder.decode(logits)
+        decoder = build_ctcdecoder(LIBRI_LABELS)
+        decoder.decode(logits)
 
     @given(
         alpha=st.one_of(st.none(), st.floats()),
