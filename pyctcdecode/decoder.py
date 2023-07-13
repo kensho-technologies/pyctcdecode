@@ -450,14 +450,10 @@ class BeamSearchDecoderCTC:
                 for beam in beams:
                     # if only blank token or same token
                     if char == "" or beam.last_char == char:
-                        if char == "":
-                            new_end_frame = beam.partial_frames[0]
-                        else:
-                            new_end_frame = frame_idx + 1
                         new_part_frames = (
                             beam.partial_frames
                             if char == ""
-                            else (beam.partial_frames[0], new_end_frame)
+                            else (beam.partial_frames[0], frame_idx + 1)
                         )
                         new_beams.append(
                             Beam(
