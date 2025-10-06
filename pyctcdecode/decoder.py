@@ -117,6 +117,21 @@ class OutputBeam:
             last_lm_state = self.last_lm_state.get_mp_safe_state()
         return dataclasses.replace(self, last_lm_state=last_lm_state)
 
+    def __getitem__(self, index: int) -> Any:
+        """Support indexing for backwards compatibility with tuple format."""
+        if index == 0:
+            return self.text
+        elif index == 1:
+            return self.last_lm_state
+        elif index == 2:
+            return self.text_frames
+        elif index == 3:
+            return self.logit_score
+        elif index == 4:
+            return self.lm_score
+        else:
+            raise IndexError(f"OutputBeam index out of range: {index}")
+
 
 # Key for the language model score cache
 # text, is_eos
