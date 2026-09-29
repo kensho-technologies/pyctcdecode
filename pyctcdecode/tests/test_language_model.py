@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 import kenlm
 from pygtrie import CharTrie
 
+from ..constants import LOG_BASE_CHANGE_FACTOR
 from ..language_model import HotwordScorer, LanguageModel, MultiLanguageModel
 from .helpers import TempfileTestCase
 
@@ -68,6 +69,24 @@ class TestLanguageModel(unittest.TestCase):
         char_trie = HotwordScorer.build_scorer(hotwords)._char_trie  # pylint: disable=W0212
         has_token = char_trie.has_node("U.S") > 0
         self.assertTrue(has_token)
+
+    def test_score_empty_last_word(self):
+        # an empty last word adds only the end of sentence score: no word score, beta or unk offset
+        kenlm_model = kenlm.Model(KENLM_BINARY_PATH)
+        lm = LanguageModel(kenlm_model, ["bugs", "bunny"], alpha=0.5, beta=1.5)
+        _, state = lm.score(lm.get_start_state(), "bugs")
+        score, end_state = lm.score(state, "", is_last_word=True)
+        expected = 0.5 * kenlm_model.BaseScore(state.state, "</s>", kenlm.State())
+        self.assertAlmostEqual(score, expected * LOG_BASE_CHANGE_FACTOR)
+        self.assertIs(end_state, state)
+        # scoring the last word directly or through an empty last word gives the same total
+        direct, _ = lm.score(lm.get_start_state(), "bugs", is_last_word=True)
+        first, state = lm.score(lm.get_start_state(), "bugs")
+        self.assertAlmostEqual(direct, first + score)
+        # without sentence boundaries the empty last word scores zero
+        lm = LanguageModel(kenlm_model, ["bugs", "bunny"], score_boundary=False)
+        _, state = lm.score(lm.get_start_state(), "bugs")
+        self.assertEqual(lm.score(state, "", is_last_word=True)[0], 0.0)
 
 
 # fuzz tests below generated with `hypothesis write language_model.py` and edited for concision.

@@ -210,7 +210,12 @@ class AbstractLanguageModel(abc.ABC):
     def score(
         self, prev_state: AbstractLMState, word: str, is_last_word: bool = False
     ) -> Tuple[float, AbstractLMState]:
-        """Score word conditional on previous lm state."""
+        """Score word conditional on previous lm state.
+
+        At the end of decoding the decoder calls this with ``is_last_word=True`` and
+        ``word=""`` when the last word has already been scored (the utterance ended on a word
+        boundary, or produced no words). That call should return only the end of sentence score.
+        """
         raise NotImplementedError()
 
     def save_to_dir(self, filepath: str) -> None:
@@ -343,6 +348,11 @@ class LanguageModel(AbstractLanguageModel):
             raise AssertionError(
                 f"Wrong input state type found. Expected KenlmState, got {type(prev_state)}"
             )
+        if is_last_word and word == "":
+            # The utterance ended on a word boundary, so the last word was already scored.
+            # Only the end of sentence term is left; "" must not be scored as an unknown word.
+            lm_score = self._get_raw_end_score(prev_state.state)
+            return self.alpha * lm_score * LOG_BASE_CHANGE_FACTOR, prev_state
         end_state = _get_empty_lm_state()
         lm_score = self._kenlm_model.BaseScore(prev_state.state, word, end_state)
         # override UNK prob. use unigram set if we have because it's faster
