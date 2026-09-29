@@ -477,7 +477,9 @@ class BeamSearchDecoderCTC:
                         clean_char = char
                         if char[:1] == BPE_TOKEN:
                             clean_char = clean_char[1:]
-                        if char[-1:] == BPE_TOKEN:
+                        # the lone BPE_TOKEN already leaves an empty partial word, so the next
+                        # token starts a new word without forcing a break
+                        if len(char) > 1 and char[-1:] == BPE_TOKEN:
                             clean_char = clean_char[:-1]
                             force_next_break = True
                         new_frame_list = (

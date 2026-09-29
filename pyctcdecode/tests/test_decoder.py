@@ -743,6 +743,26 @@ class TestDecoder(unittest.TestCase):
         self.assertEqual(len(top_beam.text_frames), len(expected_frames))
         self.assertListEqual(top_beam.text_frames, expected_frames)
 
+    def test_lone_bpe_token_does_not_split_next_word(self):
+        # a lone "▁" piece considered at a frame must not turn the other candidates at that frame
+        # into word starts; the result must also not depend on the order of the vocabulary
+        labels = [BPE_TOKEN, "▁the", "re", ""]
+        probs = np.full((2, len(labels)), 1e-4)
+        probs[0][1] = 1.0  # "▁the"
+        probs[1][2] = 0.9  # "re"
+        probs[1][0] = 0.1  # lone "▁"
+        logits = np.log(probs)
+        self.assertEqual(build_ctcdecoder(labels).decode(logits), "there")
+        order = [2, 0, 1, 3]
+        decoder = build_ctcdecoder([labels[i] for i in order])
+        self.assertEqual(decoder.decode(logits[:, order]), "there")
+        # the lone "▁" still ends the word
+        probs[1][0], probs[1][2] = 0.9, 0.1
+        self.assertEqual(build_ctcdecoder(labels).decode(np.log(probs)), "the")
+        three = np.full((3, len(labels)), 1e-4)
+        three[0][1], three[1][0], three[2][2] = 1.0, 1.0, 1.0  # "▁the", "▁", "re"
+        self.assertEqual(build_ctcdecoder(labels).decode(np.log(three)), "the re")
+
     def test_realistic_alphabet(self):
         decoder = build_ctcdecoder(LIBRI_LABELS)
         text = decoder.decode(LIBRI_LOGITS)
